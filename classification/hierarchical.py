@@ -5,28 +5,42 @@ from distance import *
 # reference: https://www.codetd.com/article/13154567
 # find the minimum value in D and return the corresponding index
 def min_index(D):
-    return np.unravel_index(np.argmin(D, axis=None), D.shape)
+    m = D.shape[0]
+    i_index, j_index = 0, 0
+    min_val = math.inf
+    for i in range(m):
+        for j in range(m):
+            if i == j: continue
+            if D[i, j] < min_val:
+                min_val, i_index, j_index = D[i, j], i, j
+
+    return i_index, j_index
 
 # param k: number of cluster
-# param min_dist: stop criterion, the mininum distance between two clusters, -1 means "not used"
-def AGNES(data, k, min_dist=-1, distance=min_cluster_distance):
+def AGNES(data, k, distance=min_cluster_distance):
     m, n = data.shape # m = number of data
     # initial m clusters
-    cls = [np.array(data[i]) for i in range(0, m)]
+    cls = [np.array(data[i]).reshape((1,n)) for i in range(m)]
     # initial dissimilarity (distance table)
-    D = np.zeros((m, n))
+    D = np.zeros((m, m))
     for i in range (0, m):
         for j in range (0, m):
+            if i == j:
+                D[i, j] = 0
+                continue
+            #print('cls[i]: ', cls[i].shape, type(cls[i]))
             D[i, j] = distance(cls[i], cls[j])
             D[j, i] = D[i, j]
 
     # number of current clusters
-    count = m
-    lrdist = math.inf
-    while count > k and lrdist > min_dist:
+    count, can_continue = m, True
+    step_mindist = []
+    while count > k and can_continue:
         # find the two closest clusters
         l, r = min_index(D)
-        lrdist = D[l,r]
+        step, min_distance = m-count + 1, D[(l, r)]
+        step_mindist.append([step, min_distance])
+        # TODO: stop when elbow of step-min_distance curve is just passed
         # merge them
         cls[l] = np.concatenate((cls[l], cls[r]), axis=0)
         ## delete the origin one
@@ -41,11 +55,10 @@ def AGNES(data, k, min_dist=-1, distance=min_cluster_distance):
 
         count -= 1
 
-    return cls
+    return cls, np.array(step_mindist)
 
 # param k: number of cluster
-# param min_dist: stop criterion, the mininum distance between two clusters, -1 means "not used"
-def DIANA(data, k, min_dist=-1, distinct=avg_distinct):
+def DIANA(data, k, distinct=avg_distinct):
     m, n = data.shape
     # Init: all points are considered as part of the same cluster
     cls = [data]
@@ -86,6 +99,4 @@ def DIANA(data, k, min_dist=-1, distinct=avg_distinct):
 
 # param k: number of cluster
 def KMeans(data, k):
-    # initial k clusters
-    # initial m clusters
-    cls = [np.array(data[i]) for i in range(0, k)]
+    pass

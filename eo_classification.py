@@ -25,20 +25,28 @@ from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QFileDialog
 
+from qgis.core import (
+    Qgis,
+    QgsProject,
+    QgsMessageLog,
+    QgsRasterLayer,
+)
+
 # Initialize Qt resources from file resources.py
 from .resources import *
 # Import the code for the dialog
 from .eo_classification_dialog import EO_ClassficationDialog
 import os.path
 
-# import numpy as np
-# import classification
+import numpy as np
+from .classification import hierarchical
 try:
     from osgeo import gdal
     from osgeo import gdalnumeric
     from osgeo import gdal_array
 except ImportError:
     import gdal
+
 
 class EO_Classfication:
     """QGIS Plugin Implementation."""
@@ -196,8 +204,13 @@ class EO_Classfication:
         if self.first_start == True:
             self.first_start = False
             self.dlg = EO_ClassficationDialog()
+
+            # initial
+            self.populate_input_file_combobox()
+
             # click the button and select the input/output
-            # self.dlg.output_btn.clicked.connect(self.select_output_file())
+            self.dlg.input_more_btn.clicked.connect(self.select_input_file)
+            self.dlg.output_more_btn.clicked.connect(self.select_output_file)
 
         # show the dialog
         self.dlg.show()
@@ -207,26 +220,72 @@ class EO_Classfication:
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            pass
+            # read configuration
+            # input file name
+            inname = self.dlg.comboBox_input_raster.currentText()
+            # output file name
+            outname = self.dlg.lineEdit_output.text()
+            # number of cluster
+            k_cluster = self.dlg.lineEdit_k_cluster.text()
+            # use what method to calculate the distance between cluster
+            distance_method = self.dlg.comboBox_cluster_dist.currentText()
+            # if plot dendrogram
+            plot_dendrogram = self.checkBox_plot_dendrogram.isChecked()
 
+            # classification algorithm
+            alg_name = self.dlg.comboBox_algorithm.currentText()
+            alg_idx = self.dlg.comboBox_algorithm.currentIndex()
+            QgsMessageLog.logMessage("Classification algorithm: {}: {}".format(alg_name, alg_idx), level=Qgis.Info)
+
+            data = self.read_raster(inname)
+            cls = None
+            if alg_idx == 0:
+                cls = hierarchical.AGNES(data, k_cluster, distance_method)
+            elif alg_idx == 1:
+                cls = hierarchical.DIANA(data, k_cluster)
+
+
+
+    # populate the comboBox for input file with the current loaded layers
+    def populate_input_file_combobox(self):
+        # the current loaded layers
+        for layer in QgsProject.instance().mapLayers().values():
+            # populate
+            self.dlg.comboBox_input_raster.addItem(layer.name())
+
+    # set input file from folders
+    def select_input_file(self):
+        filename, _filter = QFileDialog.getOpenFileName(
+            self.dlg,
+        )
+        QgsMessageLog.logMessage("Input file {} is selected".format(filename), level=Qgis.Info)
+        self.dlg.comboBox_input_raster.addItem(filename)
+        self.dlg.comboBox_input_raster.setCurrentText(filename)
 
     # set output file
     def select_output_file(self):
         filename, _filter = QFileDialog.getOpenFileName(
             self.dlg,
         )
+        QgsMessageLog.logMessage("Output file {} is selected".format(filename), level=Qgis.Info)
         self.dlg.lineEdit_output.setText(filename)
 
     # read input
     # ref: https://automating-gis-processes.github.io/2016/Lesson7-read-raster-array.html
-    def read_raster(self, path, dtype="float32"):
-        '''ds = gdal.Open(path)
+    def read_raster(self, path, dtype="int"):
+        ds = None
+        if len(os.path.split(path)) > 1:
+            ds = gdal.Open(path)
+        else: # from iface
+            rlayer = QgsProject.instance().mapLayersByName(path)[0]
+            ds = gdal.Open(rlayer.dataProvider().dataSourceUri())
+
+        QgsMessageLog.logMessage("Layer {} is open, band count: {}".format(path, ds.RasterCount), level=Qgis.Info)
+
         bands = [ds.GetRasterBand(i) for i in range(1, ds.RasterCount + 1)]
         data = np.array([
             gdalnumeric.BandReadAsArray(band) for band in bands
         ]).astype(dtype)
-        '''
 
-        data = gdal_array.LoadFile(path)
-
+        # data = gdal_array.LoadFile(path)
         return data

@@ -15,15 +15,26 @@ def avg_cluster_distance(I, J, distance=euclidean_distance):
 
 # return the minimum distance between set I and set J
 def min_cluster_distance(I, J, distance=euclidean_distance):
-    n1, n2 = I.shape[0], J.shape[0]
     min_dist = math.inf
     for i in I:
         for j in J:
+            #print("i: ", type(i), i.shape)
             dist = distance(i, j)
             if dist < min_dist:
                 min_dist = dist
 
     return min_dist
+
+# return the max distance between set I and set J
+def max_cluster_distance(I, J, distance=euclidean_distance):
+    max_dist = -math.inf
+    for i in I:
+        for j in J:
+            dist = distance(i, j)
+            if dist > max_dist:
+                max_dist = dist
+
+    return max_dist
 
 # return the cluster diameter
 def cluster_diameter(data, distance=euclidean_distance):
