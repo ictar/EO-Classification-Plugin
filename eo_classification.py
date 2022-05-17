@@ -230,12 +230,19 @@ class EO_Classfication:
             # use what method to calculate the distance between cluster
             distance_method = self.dlg.comboBox_cluster_dist.currentText()
             # if plot dendrogram
-            plot_dendrogram = self.checkBox_plot_dendrogram.isChecked()
+            plot_dendrogram = self.dlg.checkBox_plot_dendrogram.isChecked()
 
             # classification algorithm
             alg_name = self.dlg.comboBox_algorithm.currentText()
             alg_idx = self.dlg.comboBox_algorithm.currentIndex()
-            QgsMessageLog.logMessage("Classification algorithm: {}: {}".format(alg_name, alg_idx), level=Qgis.Info)
+            QgsMessageLog.logMessage(
+                """Input layer/file: {}
+                Classification algorithm: {} (index={})
+                    distance method: {}
+                    number of cluster: {}
+                Output file: {}""".format(inname, alg_name, alg_idx, distance_method, k_cluster, outname),
+                level=Qgis.Info
+            )
 
             data = self.read_raster(inname)
             cls = None
@@ -274,7 +281,7 @@ class EO_Classfication:
     # ref: https://automating-gis-processes.github.io/2016/Lesson7-read-raster-array.html
     def read_raster(self, path, dtype="int"):
         ds = None
-        if len(os.path.split(path)) > 1:
+        if os.path.split(path)[0]:
             ds = gdal.Open(path)
         else: # from iface
             rlayer = QgsProject.instance().mapLayersByName(path)[0]
@@ -287,5 +294,6 @@ class EO_Classfication:
             gdalnumeric.BandReadAsArray(band) for band in bands
         ]).astype(dtype)
 
+        QgsMessageLog.logMessage("Raster {} -> numpy.array, shape: {}".format(path, data.shape), level=Qgis.Info)
         # data = gdal_array.LoadFile(path)
-        return data
+        return data # shape:(band, Y, X)

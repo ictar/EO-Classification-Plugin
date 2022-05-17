@@ -1,6 +1,6 @@
 import numpy as np
 import math
-from distance import *
+from .distance import *
 
 # reference: https://www.codetd.com/article/13154567
 # find the minimum value in D and return the corresponding index
