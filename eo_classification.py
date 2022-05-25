@@ -21,9 +21,11 @@
  *                                                                         *
  ***************************************************************************/
 """
+import math
+
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QFileDialog
+from qgis.PyQt.QtWidgets import QAction, QFileDialog, QListWidget, QListWidgetItem
 
 from qgis.core import (
     Qgis,
@@ -39,13 +41,17 @@ from .eo_classification_dialog import EO_ClassficationDialog
 import os.path
 
 import numpy as np
-from .classification import hierarchical
+from .classification import hierarchical, optimization, distance
+
 try:
     from osgeo import gdal
     from osgeo import gdalnumeric
     from osgeo import gdal_array
+    from osgeo import osr
 except ImportError:
     import gdal
+
+NODATA = -9999
 
 
 class EO_Classfication:
@@ -83,6 +89,9 @@ class EO_Classfication:
         # Must be set in initGui() to survive plugin reloads
         self.first_start = None
 
+        # input raster layer
+        self.RASTER_DS = None
+
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
         """Get the translation for a string using Qt translation API.
@@ -98,18 +107,17 @@ class EO_Classfication:
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('EO_Classfication', message)
 
-
     def add_action(
-        self,
-        icon_path,
-        text,
-        callback,
-        enabled_flag=True,
-        add_to_menu=True,
-        add_to_toolbar=True,
-        status_tip=None,
-        whats_this=None,
-        parent=None):
+            self,
+            icon_path,
+            text,
+            callback,
+            enabled_flag=True,
+            add_to_menu=True,
+            add_to_toolbar=True,
+            status_tip=None,
+            whats_this=None,
+            parent=None):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -186,7 +194,6 @@ class EO_Classfication:
         # will be set False in run()
         self.first_start = True
 
-
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -194,7 +201,6 @@ class EO_Classfication:
                 self.tr(u'&EarthObservation Classification'),
                 action)
             self.iface.removeToolBarIcon(action)
-
 
     def run(self):
         """Run method that performs all the real work"""
@@ -212,6 +218,11 @@ class EO_Classfication:
             self.dlg.input_more_btn.clicked.connect(self.select_input_file)
             self.dlg.output_more_btn.clicked.connect(self.select_output_file)
 
+            # click the button to load input layer
+            self.dlg.load_raster_btn.clicked.connect(self.load_raster)
+            # click the button to run the classification
+            self.dlg.do_classify_btn.clicked.connect(self.unsupervised_classification)
+
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
@@ -220,38 +231,7 @@ class EO_Classfication:
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
-            # read configuration
-            # input file name
-            inname = self.dlg.comboBox_input_raster.currentText()
-            # output file name
-            outname = self.dlg.lineEdit_output.text()
-            # number of cluster
-            k_cluster = self.dlg.lineEdit_k_cluster.text()
-            # use what method to calculate the distance between cluster
-            distance_method = self.dlg.comboBox_cluster_dist.currentText()
-            # if plot dendrogram
-            plot_dendrogram = self.dlg.checkBox_plot_dendrogram.isChecked()
-
-            # classification algorithm
-            alg_name = self.dlg.comboBox_algorithm.currentText()
-            alg_idx = self.dlg.comboBox_algorithm.currentIndex()
-            QgsMessageLog.logMessage(
-                """Input layer/file: {}
-                Classification algorithm: {} (index={})
-                    distance method: {}
-                    number of cluster: {}
-                Output file: {}""".format(inname, alg_name, alg_idx, distance_method, k_cluster, outname),
-                level=Qgis.Info
-            )
-
-            data = self.read_raster(inname)
-            cls = None
-            if alg_idx == 0:
-                cls = hierarchical.AGNES(data, k_cluster, distance_method)
-            elif alg_idx == 1:
-                cls = hierarchical.DIANA(data, k_cluster)
-
-
+            pass
 
     # populate the comboBox for input file with the current loaded layers
     def populate_input_file_combobox(self):
@@ -279,21 +259,212 @@ class EO_Classfication:
 
     # read input
     # ref: https://automating-gis-processes.github.io/2016/Lesson7-read-raster-array.html
-    def read_raster(self, path, dtype="int"):
-        ds = None
+    def load_raster(self):
+        if self.RASTER_DS:
+            # TODO: deal with opened raster layer
+            pass
+
+        # input file name
+        path = self.dlg.comboBox_input_raster.currentText()
+
         if os.path.split(path)[0]:
-            ds = gdal.Open(path)
-        else: # from iface
+            self.RASTER_DS = gdal.Open(path)
+        else:  # from iface
             rlayer = QgsProject.instance().mapLayersByName(path)[0]
-            ds = gdal.Open(rlayer.dataProvider().dataSourceUri())
+            self.RASTER_DS = gdal.Open(rlayer.dataProvider().dataSourceUri())
 
-        QgsMessageLog.logMessage("Layer {} is open, band count: {}".format(path, ds.RasterCount), level=Qgis.Info)
+        self.dlg.log_area.insertPlainText("Layer {} is open, band count: {}\n".format(path, self.RASTER_DS.RasterCount))
 
-        bands = [ds.GetRasterBand(i) for i in range(1, ds.RasterCount + 1)]
+        # show band information to select, default, all bands are selected
+        for i in range(1, self.RASTER_DS.RasterCount + 1):
+            item = QListWidgetItem("Band %i" % i)
+            self.dlg.list_bands.addItem(item)
+
+    # load configuration for classification methods
+    def load_classify_config(self):
+        # output file name
+        outname = self.dlg.lineEdit_output.text()
+        # number of cluster
+        k_cluster = self.dlg.lineEdit_k_cluster.text()
+        if k_cluster: k_cluster = int(k_cluster)
+
+        # precision
+        precision = self.dlg.lineEdit_precision.text()
+        if precision: precision = float(precision)
+        # use what method to calculate the distance between cluster
+        distance_method = self.dlg.comboBox_cluster_dist.currentText()
+        # if plot dendrogram
+        plot_dendrogram = self.dlg.checkBox_plot_dendrogram.isChecked()
+
+        # classification algorithm
+        alg_name = self.dlg.comboBox_algorithm.currentText()
+        alg_idx = self.dlg.comboBox_algorithm.currentIndex()
+
+
+        QgsMessageLog.logMessage(
+            """Classification algorithm: {} (index={})
+                distance method: {}
+                number of cluster: {}
+            Output file: {}""".format(alg_name, alg_idx, distance_method, k_cluster, outname),
+            level=Qgis.Info
+            )
+
+        self.dlg.log_area.insertPlainText("""Classification algorithm: {} (index={})
+                distance method: {}
+                number of cluster: {}
+                precision: {}
+                plot dendrogram: {}
+            Output file: {}\n""".format(alg_name, alg_idx, distance_method, k_cluster, precision, plot_dendrogram, outname))
+
+        return {
+            "k_cluseter": k_cluster,
+            "precision": precision,
+            "distance_method": distance_method,
+            "plot_dendrogram": plot_dendrogram,
+            "alg_name": alg_name,
+            "alg_idx": alg_idx,
+            "outname": outname,
+        }
+
+    # transfer raster to a numpy array
+    def raster_to_array(self, dtype="int"):
+        #bands = [self.RASTER_DS.GetRasterBand(i) for i in range(1, self.RASTER_DS.RasterCount + 1)]
+
+        items = self.dlg.list_bands.selectedItems()
+
+        bands = []
+        bands_num = []
+        for i in range(len(items)):
+            band = int(str(items[i].text()).split("Band ")[-1])
+            bands.append(self.RASTER_DS.GetRasterBand(band))
+            bands_num.append(band)
+
         data = np.array([
             gdalnumeric.BandReadAsArray(band) for band in bands
         ]).astype(dtype)
 
-        QgsMessageLog.logMessage("Raster {} -> numpy.array, shape: {}".format(path, data.shape), level=Qgis.Info)
-        # data = gdal_array.LoadFile(path)
-        return data # shape:(band, Y, X)
+        self.dlg.log_area.insertPlainText("selected band: {}\nRaster -> numpy.array, shape: {}\n".format(bands_num, data.shape))
+
+        return data  # shape:(band, Y, X)
+
+    # read
+    # TODO: write classfied result to raster
+    # ref: https://gis.stackexchange.com/questions/34082/creating-raster-layer-from-numpy-array-using-pyqgis
+    # data: a numpy array, (x, y) = data.shape
+    def write_array_to_raster(self, data, save_to, geotransform, SRID=4326):
+        driver = gdal.GetDriverByName('GTiff')
+
+        rows, cols = data.shape
+        dataset = driver.Create(
+            save_to,
+            cols, rows,
+            1, gdal.GDT_Float32,
+        )
+
+        dataset.SetGeoTransform(geotransform)
+
+        out_srs = osr.SpatialReference()
+        out_srs.ImportFromEPSG(SRID)
+
+        dataset.SetProjection(out_srs.ExportToWkt())
+        dataset.GetRasterBand(1).WriteArray(data.T)
+        dataset.GetRasterBand(1).SetNoDataValue(NODATA)
+
+    # TODO： write resulted narray to raster with original data reserved
+    # ref: https://gis.stackexchange.com/questions/318050/writing-numpy-arrays-to-irregularly-shaped-multiband-raster
+    def write_array_to_raster_multiband(self, data, save_to,
+                                        xres, yres,
+                                        xmin, ymin,
+                                        nrows, ncols,
+                                        ncels, nbands
+                                        ):
+        cells = np.random.choice(np.arange(nrows * ncols), ncels, replace=False)
+        lats = np.arange(ymin, ymin + nrows * yres, yres)
+        lons = np.arange(xmin, xmin + ncols * xres, xres)
+        lats, lons = np.meshgrid(lats, lons)
+        lats, lons = lats.ravel()[cells]
+        # make an empty 1 band array to fill with labels
+        array = np.empty((nrows, ncols), dtype=np.int)
+        xmin, ymin, xmax, ymax = [lons.min(), lats.min(), lons.max(), lats.max()]
+        geotransform = (xmin, xres, 0, ymax, 0, -yres)
+
+        # open the file
+        out_raster = gdal.GetDriverByName('GTiff'). \
+            Create(save_to, ncols, nrows, nbands, gdal.GDT_Float32)
+        out_raster.SetGeoTransform(geotransform)
+
+        # Loop bands
+        for i in range(nbands):
+            # Init array with nodata
+            array[:] = NODATA
+            # loop lat/lons inc. index j
+            for j, (lon, lat) in enumerate(zip(lons, lats)):
+                # calc x, y pixel index
+                x = math.floor((lon - xmin) / xres)
+                y = math.floor((lat - ymin) / xres)
+                # TODO: fill the array
+
+            out_raster.GetRasterBand(i + 1).WriteArray(array)
+            out_raster.GetRasterBand(i + 1).SetNoDataValue(NODATA)
+
+        del out_raster
+
+    '''
+    data: ndarray, shape = (band, row, col)
+    
+    return:
+        a ndarray, shape = (row*col, band+2)
+    '''
+
+    def _transfer_data_with_coordinate(self, data):
+        nband, ny, nx = data.shape
+        XX, YY = np.meshgrid(np.arange(nx), np.arange(ny))
+        return np.vstack((data.ravel().reshape((nband, ny * nx)), XX.ravel(), YY.ravel())).T
+
+    def unsupervised_classification(self):
+        # change to "log" tab
+        self.dlg.classify_tabs.setCurrentIndex(4)
+
+        data = self.raster_to_array()
+        params = self.load_classify_config()
+
+        algorithms = {
+            0: hierarchical.AGNES,
+            1: hierarchical.DIANA,
+            2: optimization.FUZZY,
+        }
+        cls = None
+
+        distance_methods = {
+            "average distance": distance.avg_cluster_distance,
+            "minimum distance": distance.min_cluster_distance,
+            "maximum distance": distance.max_cluster_distance,
+        }
+
+        data = self._transfer_data_with_coordinate(data)
+        QgsMessageLog.logMessage("after transfer data to 2D with coordiantes, shape: {}".format(data.shape), level=Qgis.Info)
+        if params["alg_idx"] == 0:
+            cls = hierarchical.AGNES(
+                data, params["k_cluseter"], distance_methods[params["distance_method_name"]],
+                valid_col_slice=np.index_exp[:-2]
+            )
+        elif params["alg_idx"] == 1:
+            cls = hierarchical.DIANA(data, params["k_cluseter"])
+        elif params["alg_idx"] == 2:
+            cls = optimization.FUZZY(data, params["k_cluseter"], params["precision"])
+
+        save_data = self._clses_2D_label(cls, data.shape[1:])
+         # save to raster file
+        self.write_array_to_raster(save_data, params["outname"], self.RASTER_DS.GetGeoTransform)
+
+
+    # TODO: transfer a set of classes into a numpy array
+    #  whose index corresponding to coordinates and value to class (result[i,j]=class)
+    def _clses_2D_label(self, clses, shape):
+        result = np.ones(shape) * NODATA
+
+        for label, cls in enumerate(clses, start=1):
+            for ele in cls:
+                result[ele[-1], ele[-2]] = label
+
+        return result

@@ -37,3 +37,6 @@ class Confution_Matrix:
         self.recall = np.diag(self.confusion_matrix) / np.sum(self.confusion_matrix, axis=1)
         # F1
         self.F1 = 2 * self.precision * self.recall / (self.precision + self.recall)
+
+
+# TODO: silhouette index

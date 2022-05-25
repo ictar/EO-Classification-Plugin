@@ -1,9 +1,23 @@
 import numpy as np
 import math
 
-# definition of distance
-euclidean_distance = lambda x, y: math.sqrt((x-y)@(x-y).T)
+# definition of distance between two point
+euclidean_distance = lambda x, y: np.sqrt(np.sum(np.square(x-y)))
+cityblock_distance = lambda x, y: np.sum(np.abs(x-y), axis=0)
 
+# return the distance between each point in data
+def points_distance(data, distance=euclidean_distance):
+    N = data.shape[0]
+    results = np.ones((N, N)) * -1
+
+    for i in data:
+        for j in data:
+            if results[i, j] != -1: continue
+            results[i, j] = distance(i, j)
+            results[j, i] = results[i, j]
+    return results
+
+# ----------------------------- Begin: distance between cluster and cluster -----------------------------
 # return the average distance between set I and set J
 def avg_cluster_distance(I, J, distance=euclidean_distance):
     n1, n2 = I.shape[0], J.shape[0]
@@ -36,6 +50,8 @@ def max_cluster_distance(I, J, distance=euclidean_distance):
 
     return max_dist
 
+# ----------------------------- End: distance between cluster and cluster -----------------------------
+
 # return the cluster diameter
 def cluster_diameter(data, distance=euclidean_distance):
     max_dist = -1
@@ -47,16 +63,7 @@ def cluster_diameter(data, distance=euclidean_distance):
                 max_dist = d
     return max_dist
 
-# return the cluster who has the largest diameter
-def max_diameter_cluster(cls):
-    idx, max_diameter = -1, -1
-    for i in range(len(cls)):
-        diameter = cluster_diameter(cls[i])
-        if diameter > max_diameter:
-            idx, max_diameter = i, diameter
-    return idx, max_diameter
-
-# return the average distinct between a point and a cluster)
+# return the average distance between a point and a cluster
 def avg_distinct(x, C, distance=euclidean_distance):
     total = 0
     for c in C:
