@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>EO demo</string>
+   <string>EO Classification Tool</string>
   </property>
   <widget class="QDialogButtonBox" name="button_box">
    <property name="geometry">
@@ -32,17 +32,17 @@
     <set>QDialogButtonBox::Close|QDialogButtonBox::Help|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QTabWidget" name="classify_btn">
+  <widget class="QTabWidget" name="classify_tabs">
    <property name="geometry">
     <rect>
      <x>10</x>
      <y>10</y>
      <width>521</width>
-     <height>311</height>
+     <height>321</height>
     </rect>
    </property>
    <property name="currentIndex">
-    <number>2</number>
+    <number>1</number>
    </property>
    <widget class="QWidget" name="tab">
     <attribute name="title">
@@ -87,8 +87,8 @@
     <widget class="QPushButton" name="load_raster_btn">
      <property name="geometry">
       <rect>
-       <x>20</x>
-       <y>70</y>
+       <x>400</x>
+       <y>250</y>
        <width>71</width>
        <height>32</height>
       </rect>
@@ -100,8 +100,8 @@
     <widget class="QLabel" name="label_5">
      <property name="geometry">
       <rect>
-       <x>300</x>
-       <y>90</y>
+       <x>340</x>
+       <y>70</y>
        <width>151</width>
        <height>32</height>
       </rect>
@@ -113,21 +113,39 @@
     <widget class="QListWidget" name="list_bands">
      <property name="geometry">
       <rect>
-       <x>300</x>
-       <y>120</y>
+       <x>340</x>
+       <y>100</y>
        <width>141</width>
-       <height>71</height>
+       <height>101</height>
       </rect>
      </property>
      <property name="selectionMode">
       <enum>QAbstractItemView::MultiSelection</enum>
      </property>
     </widget>
-   </widget>
-   <widget class="QWidget" name="tab_profile">
-    <attribute name="title">
-     <string>Profile</string>
-    </attribute>
+    <widget class="QLabel" name="layer_info_label">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>70</y>
+       <width>151</width>
+       <height>32</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Properties of the layer:</string>
+     </property>
+    </widget>
+    <widget class="QTextBrowser" name="layer_info_browser">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>100</y>
+       <width>301</width>
+       <height>161</height>
+      </rect>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="tab_unsuper">
     <attribute name="title">
@@ -144,7 +162,7 @@
      </property>
      <item>
       <property name="text">
-       <string>AGNES (AGglomerative NESting)</string>
+       <string>FUNZZY</string>
       </property>
      </item>
      <item>
@@ -152,34 +170,6 @@
        <string>DIANA (DIvisive ANAlysis)</string>
       </property>
      </item>
-     <item>
-      <property name="text">
-       <string>FUNZZY</string>
-      </property>
-     </item>
-    </widget>
-    <widget class="QLabel" name="label_4">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>100</y>
-       <width>111</width>
-       <height>21</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Number of cluster</string>
-     </property>
-    </widget>
-    <widget class="QLineEdit" name="lineEdit_k_cluster">
-     <property name="geometry">
-      <rect>
-       <x>120</x>
-       <y>100</y>
-       <width>91</width>
-       <height>21</height>
-      </rect>
-     </property>
     </widget>
     <widget class="QLabel" name="label_6">
      <property name="geometry">
@@ -191,46 +181,28 @@
       </rect>
      </property>
      <property name="text">
-      <string>Distance between cluster</string>
+      <string>Distance between points</string>
      </property>
     </widget>
-    <widget class="QComboBox" name="comboBox_cluster_dist">
+    <widget class="QComboBox" name="comboBox_point_dist">
      <property name="geometry">
       <rect>
        <x>170</x>
        <y>130</y>
-       <width>241</width>
+       <width>161</width>
        <height>32</height>
       </rect>
      </property>
      <item>
       <property name="text">
-       <string>average distance</string>
+       <string>euclidean distance</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>minimum distance</string>
+       <string>cityblock distance</string>
       </property>
      </item>
-     <item>
-      <property name="text">
-       <string>maximum distance</string>
-      </property>
-     </item>
-    </widget>
-    <widget class="QCheckBox" name="checkBox_plot_dendrogram">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>170</y>
-       <width>131</width>
-       <height>20</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Plot Dendrogram</string>
-     </property>
     </widget>
     <widget class="QSplitter" name="splitter">
      <property name="geometry">
@@ -290,7 +262,7 @@
     <widget class="QLabel" name="label_7">
      <property name="geometry">
       <rect>
-       <x>240</x>
+       <x>10</x>
        <y>100</y>
        <width>61</width>
        <height>21</height>
@@ -303,7 +275,7 @@
     <widget class="QLineEdit" name="lineEdit_precision">
      <property name="geometry">
       <rect>
-       <x>300</x>
+       <x>70</x>
        <y>100</y>
        <width>91</width>
        <height>21</height>
@@ -313,7 +285,39 @@
       <enum>Qt::LeftToRight</enum>
      </property>
      <property name="text">
-      <string>0.001</string>
+      <string>0.01</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_8">
+     <property name="geometry">
+      <rect>
+       <x>200</x>
+       <y>100</y>
+       <width>111</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>number of cluster</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="lineEdit_kcluster">
+     <property name="geometry">
+      <rect>
+       <x>320</x>
+       <y>100</y>
+       <width>91</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="layoutDirection">
+      <enum>Qt::LeftToRight</enum>
+     </property>
+     <property name="text">
+      <string/>
      </property>
      <property name="alignment">
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -340,19 +344,6 @@
      </property>
     </widget>
    </widget>
-  </widget>
-  <widget class="QProgressBar" name="progressBar">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>320</y>
-     <width>521</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="value">
-    <number>0</number>
-   </property>
   </widget>
  </widget>
  <resources/>

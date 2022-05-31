@@ -43,12 +43,3 @@ def FUZZY(data, k, prec):
     label = np.where(w == w_max)[1].reshape((N, 1))
     #print(w_max, np.where(w == w_max)[1] )
     return np.concatenate((data, label), 1), w_max
-
-
-# TODO
-# param data: (nX*nY, band+2)
-# param k: number of cluster
-def PAM(data, k, point_distance=cityblock_distance):
-    N, dim = data.shape
-
-    D = points_distance(data, point_distance)

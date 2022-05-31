@@ -24,52 +24,6 @@ def clusters2array(clses):
     for idx in range(len(clses)):
         clses[idx]
 
-# data: numpy.array whose shape is (nX*nY, band+2)
-# param k: number of cluster
-def AGNES(data, k,
-          point_distance=euclidean_distance,
-          cluster_distance=min_cluster_distance,
-          valid_col_slice=np.index_exp[:]
-          ):
-    m, n = data.shape
-    # initial m clusters: every cluster has one element
-    cls = [np.array(data[i]) for i in range(0, m)]
-    # initial dissimilarity (distance table)
-    DT = np.zeros((m, m))
-    for i in range(0, m):
-        for j in range(0, m):
-            if i == j:
-                DT[i, j] = 0
-                continue
-            #print('cls[i]: ', cls[i].shape, type(cls[i]))
-            DT[i, j] = point_distance(cls[i][valid_col_slice], cls[j][valid_col_slice])
-            DT[j, i] = DT[i, j]
-
-    # number of current clusters
-    count, can_continue = m, True
-    step_mindist = []
-    while count > k and can_continue:
-        # find the two closest clusters
-        l, r = min_index(DT)
-        step, min_distance = m-count + 1, DT[(l, r)]
-        step_mindist.append([step, min_distance])
-        # TODO: stop when elbow of step-min_distance curve is just passed
-        # merge them
-        cls[l] = np.concatenate((cls[l], cls[r]), axis=0)
-        ## delete the origin one
-        cls = np.delete(cls, r, axis=0)
-        ## delete the corresponding class in dissimilarity table
-        DT = np.delete(DT, r, axis=0)
-        DT = np.delete(DT, r, axis=1)
-        # update the dissimilarity table
-        for j in range(0, count-1):
-            DT[l, j] = cluster_distance(cls[l][valid_col_slice], cls[j][valid_col_slice])
-            DT[j, l] = DT[l, j]
-
-        count -= 1
-
-    return cls, np.array(step_mindist)
-
 # return the cluster who has the largest diameter
 def max_diameter_cluster(cls, valid_col_slice):
     idx, max_diameter = -1, -1
@@ -79,48 +33,73 @@ def max_diameter_cluster(cls, valid_col_slice):
             idx, max_diameter = i, diameter
     return cls[idx], idx
 
-# data: numpy.array whose shape is (nX*nY, band+2)
-# param k: number of cluster
-def DIANA(data, k, 
-        distinct=avg_distinct,
-        valid_col_slice=np.index_exp[:]
-        ):
-    m, n = data.shape
-    # Init: all points are considered as part of the same cluster
-    cls = [data]
-    ## number of the current clusters
-    count = 1
-    iter_distance = []
-    # Loop: subdivide the largest cluster into two clusters
-    while count < k:
-        # find the largest cluster
-        C, idx = max_diameter_cluster(cls, valid_col_slice)
-        # find the point which has the maximum distinction => C[j]
-        max_val, j = 0, -1
-        for i in range(C.shape[0]):
-            diff = distinct(C[i][valid_col_slice], np.delete(C, i, axis=0))
-            if max_val < diff:
-                max_val, j = diff, i
+# param data: numpy.array whose shape is (N, dims)
+# param point_distance: method to calulate the distance between two points, default is "euclidean distance"
+def DIANA(data, point_distance=euclidean_distance):
+    N =  data.shape[0] # number of data
+    dim = data.shape[1] # data dimension (n bands)
 
-        iter_distance.append([count, max_val])
-        # divide it into two clusters
-        cls_new = C[j].reshape((1,n))
-        cls_old = np.delete(C, j, axis=0)
-        while True:
-            update = 0
-            for i in range(cls_old.shape[0]):
-                l, r = distinct(cls_old[i][valid_col_slice], cls_new), distinct(cls_old[i][valid_col_slice], np.delete(cls_old, i, axis=0))
-                if l < r:
-                    update += 1
-                    cls_new = np.concatenate((cls_new, [cls_old[i]]), axis=0)
-                    cls_old = np.delete(cls_old, i, axis=0)
-                    break
-            if update == 0: break
+    # distance matrix between each point
+    D = points_distance(data, point_distance)
 
-        cls.pop(idx)
-        cls.append(cls_old)
-        cls.append(cls_new)
+    # number of iteration / current labels ([1..M])
+    M = 1
+    # labels (N, 1)
+    label = np.ones((N, 1)) * M
 
-        count += 1
+    while M < N:
+        diam = np.zeros((M, 1))
+        num = np.zeros((M, 1))
+        for k in range(1, M): # compute the diameters of each cluster
+            pos = np.where(label[:, M-1] ==k)
+            diam[k-1] = D[pos, pos].max(0).max(0)
+            num[k-1] = len(pos) # nuber of elements in cluster k
 
-    return cls, np.array(iter_distance)
+        diamMax, k1 = diam.max(0), diam.argmax(0) # k1 = cluster with largest diameter
+
+        if diamMax == 0:
+            numMax, k1 = num.max(0), num.argmax(0)
+
+        if M <= 5 and M > 1:
+            print("""
+            diameter of cluster:
+            {}
+
+            cluster to be splitted: {}
+            -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+            """.format(diam, k1))
+
+
+        pos1 = np.where(label[:, M-1] == k1)
+        # dissimilarity table for cluster k1
+        T = D[pos1, pos1]
+        # average distance between one point to the others
+        Tmed1 = np.sum(T) / (len(pos1) - 1)
+        # pick the largest one which may be separated from cluster k1
+        Tmax1, iMax1 = Tmed1.max(0), Tmed1.argmax(0)
+        # position of the picked one in D
+        i = pos1[iMax1]
+
+        # create a new column to store the new labels in this interation
+        np.concatenate((label, label[:, M-1]))
+
+        pos2, Tmed2 = [], 0
+        #  separate i if the mean distance for element i in cluster k1 is large then the mean distance for element i in cluster k2 (element i has the largest mean distance in cluster k1)
+        while Tmax1 >= Tmed2 and len(pos1) > 1:
+            # move element i from k1 to k2
+            pos1 = pos1.difference(i)
+            pos2 = pos2.union(i)
+            # set the element i to a new label
+            label[i, M] = M+1
+            # confusion: Tmax[M-1] = Tmax1
+
+            T = D[pos1, pos1]
+
+            if len(pos1) > 1:
+                Tmed1 = np.sum(T) / len(pos1) - 1
+                Tmax1, iMax1 = Tmed1.max(0), Tmed1.argmax(0)
+                i = pos1[iMax1] # next candidate
+                T = D[i, pos2]
+                Tmed2 = np.mean(T)
+
+    return np.concatenate((data, label[:, M-1]))

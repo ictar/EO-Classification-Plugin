@@ -276,51 +276,81 @@ class EO_Classfication:
         self.dlg.log_area.insertPlainText("Layer {} is open, band count: {}\n".format(path, self.RASTER_DS.RasterCount))
 
         # show band information to select, default, all bands are selected
+        band_statistics = ""
         for i in range(1, self.RASTER_DS.RasterCount + 1):
             item = QListWidgetItem("Band %i" % i)
             self.dlg.list_bands.addItem(item)
+
+            band = self.RASTER_DS.GetRasterBand(i)
+            # compute statistics if needed
+            if band.GetMinimum() is None or band.GetMaximum() is None:
+                band.ComputeStatistics(0)
+            
+            # fetch metadata for the band
+            band.GetMetadata()
+
+            band_statistics += """Band {}:
+                [Data Type] = {}
+                [NO Data Value] = {}
+                [Min] = {}, [Max] = {}
+
+            """.format(
+                i,
+                gdal.GetDataTypeName(band.DataType),
+                band.GetNoDataValue(),
+                band.GetMinimum(), band.GetMaximum()
+            )
+
+        # show layer properties
+        self.dlg.layer_info_browser.append("""Dimensions:
+    x size = {},
+    y size = {}
+        
+Metdata:
+    {}
+        
+Number of bands: {}
+    {}
+
+Projection: 
+    {}
+        """.format(
+            self.RASTER_DS.RasterXSize, self.RASTER_DS.RasterYSize,
+            self.RASTER_DS.GetMetadata(),
+            self.RASTER_DS.RasterCount,
+            band_statistics,
+            self.RASTER_DS.GetProjection()
+        ))
 
     # load configuration for classification methods
     def load_classify_config(self):
         # output file name
         outname = self.dlg.lineEdit_output.text()
-        # number of cluster
-        k_cluster = self.dlg.lineEdit_k_cluster.text()
-        if k_cluster: k_cluster = int(k_cluster)
 
         # precision
         precision = self.dlg.lineEdit_precision.text()
         if precision: precision = float(precision)
-        # use what method to calculate the distance between cluster
-        distance_method = self.dlg.comboBox_cluster_dist.currentText()
-        # if plot dendrogram
-        plot_dendrogram = self.dlg.checkBox_plot_dendrogram.isChecked()
+        # number of cluster
+        k_cluster = self.dlg.lineEdit_kcluster.text()
+        if k_cluster: k_cluster = int(k_cluster)
+        
+        # use what method to calculate the distance between points
+        point_distance_method = self.dlg.comboBox_point_dist.currentText()
 
         # classification algorithm
         alg_name = self.dlg.comboBox_algorithm.currentText()
         alg_idx = self.dlg.comboBox_algorithm.currentIndex()
 
-
-        QgsMessageLog.logMessage(
-            """Classification algorithm: {} (index={})
-                distance method: {}
-                number of cluster: {}
-            Output file: {}""".format(alg_name, alg_idx, distance_method, k_cluster, outname),
-            level=Qgis.Info
-            )
-
         self.dlg.log_area.insertPlainText("""Classification algorithm: {} (index={})
-                distance method: {}
-                number of cluster: {}
-                precision: {}
-                plot dendrogram: {}
-            Output file: {}\n""".format(alg_name, alg_idx, distance_method, k_cluster, precision, plot_dendrogram, outname))
+                point distance method: {}
+                precision: {},
+                number of cluster: {},
+            Output file: {}\n""".format(alg_name, alg_idx, point_distance_method, precision, k_cluster, outname))
 
         return {
-            "k_cluseter": k_cluster,
             "precision": precision,
-            "distance_method": distance_method,
-            "plot_dendrogram": plot_dendrogram,
+            "k_cluster": k_cluster,
+            "point_distance_method": point_distance_method,
             "alg_name": alg_name,
             "alg_idx": alg_idx,
             "outname": outname,
@@ -345,7 +375,7 @@ class EO_Classfication:
 
         self.dlg.log_area.insertPlainText("selected band: {}\nRaster -> numpy.array, shape: {}\n".format(bands_num, data.shape))
 
-        return data  # shape:(band, Y, X)
+        return data  # shape:(bands, Y, X)
 
     # read
     # TODO: write classfied result to raster
@@ -409,62 +439,53 @@ class EO_Classfication:
 
         del out_raster
 
-    '''
-    data: ndarray, shape = (band, row, col)
     
-    return:
-        a ndarray, shape = (row*col, band+2)
-    '''
-
-    def _transfer_data_with_coordinate(self, data):
-        nband, ny, nx = data.shape
-        XX, YY = np.meshgrid(np.arange(nx), np.arange(ny))
-        return np.vstack((data.ravel().reshape((nband, ny * nx)), XX.ravel(), YY.ravel())).T
-
     def unsupervised_classification(self):
         # change to "log" tab
-        self.dlg.classify_tabs.setCurrentIndex(4)
+        self.dlg.classify_tabs.setCurrentIndex(3)
 
         data = self.raster_to_array()
+        (nband, nY, nX) = data.shape
+        data = data.reshape((nband, nY*nX)).reshape((nY*nX, nband))
+
         params = self.load_classify_config()
 
         algorithms = {
-            0: hierarchical.AGNES,
+            0: optimization.FUZZY,
             1: hierarchical.DIANA,
-            2: optimization.FUZZY,
         }
         cls = None
 
-        distance_methods = {
-            "average distance": distance.avg_cluster_distance,
-            "minimum distance": distance.min_cluster_distance,
-            "maximum distance": distance.max_cluster_distance,
+        point_distance_methods = {
+            "euclidean distance": distance.euclidean_distance,
+            "cityblock distance": distance.cityblock_distance,
         }
 
-        data = self._transfer_data_with_coordinate(data)
-        QgsMessageLog.logMessage("after transfer data to 2D with coordiantes, shape: {}".format(data.shape), level=Qgis.Info)
-        if params["alg_idx"] == 0:
-            cls = hierarchical.AGNES(
-                data, params["k_cluseter"], distance_methods[params["distance_method_name"]],
-                valid_col_slice=np.index_exp[:-2]
-            )
-        elif params["alg_idx"] == 1:
-            cls = hierarchical.DIANA(data, params["k_cluseter"])
-        elif params["alg_idx"] == 2:
-            cls = optimization.FUZZY(data, params["k_cluseter"], params["precision"])
+        #data = self._transfer_data_with_coordinate(data)
+        
+        #self.dlg.log_area.insertPlainText("after transfer data to 2D with coordiantes, shape: {}".format(data.shape))
 
-        save_data = self._clses_2D_label(cls, data.shape[1:])
+        if params["alg_idx"] == 0:
+            labels, _ = optimization.FUZZY(data, params["k_cluster"], params["precision"])
+        elif params["alg_idx"] == 1:
+            labels = hierarchical.DIANA(data, point_distance_methods[params["point_distance_method"]])
+
+        save_data = labels[:, -1].reshape((nX, nY))
+        
+        
+        #if params["alg_idx"] in [0, 1]:
+        #    save_data = self._clses_2D_label(cls, data.shape[1:])
+        #if params["alg_idx"] in [2]:
+        #    save_data = self._cls_2D_label(cls, data.shape[1:])
+        
          # save to raster file
         self.write_array_to_raster(save_data, params["outname"], self.RASTER_DS.GetGeoTransform)
 
 
-    # TODO: transfer a set of classes into a numpy array
-    #  whose index corresponding to coordinates and value to class (result[i,j]=class)
-    def _clses_2D_label(self, clses, shape):
+    # TODO: transfer data with label into a numpy array
+    # whose index corresponding to coordinates and value to class (result[i,j]=label)
+    def _cls_2D_label(self, cls, shape):
         result = np.ones(shape) * NODATA
-
-        for label, cls in enumerate(clses, start=1):
-            for ele in cls:
-                result[ele[-1], ele[-2]] = label
-
+        for ele in cls:
+            result[ele[-2], ele[-3]] = ele[-1]
         return result
