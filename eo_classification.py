@@ -451,7 +451,7 @@ Projection:
         params = self.load_classify_config()
 
         algorithms = {
-            0: optimization.FUZZY,
+            0: optimization.FANNY,
             1: hierarchical.DIANA,
         }
         cls = None
@@ -466,7 +466,7 @@ Projection:
         #self.dlg.log_area.insertPlainText("after transfer data to 2D with coordiantes, shape: {}".format(data.shape))
 
         if params["alg_idx"] == 0:
-            labels, _ = optimization.FUZZY(data, params["k_cluster"], params["precision"])
+            labels, _ = optimization.FANNY(data, params["k_cluster"], params["precision"])
         elif params["alg_idx"] == 1:
             labels = hierarchical.DIANA(data, point_distance_methods[params["point_distance_method"]])
 
