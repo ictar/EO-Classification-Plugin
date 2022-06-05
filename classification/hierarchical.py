@@ -27,6 +27,7 @@ def max_diameter_cluster(cls, valid_col_slice):
     return cls[idx], idx
 
 
+# TODO: stop criterion
 # param data: numpy.array whose shape is (N, dims)
 # param point_distance: method to calulate the distance between two points, default is "euclidean distance"
 def DIANA(data, point_distance=euclidean_distance):
@@ -41,9 +42,8 @@ def DIANA(data, point_distance=euclidean_distance):
     M = 1
     # labels (N, 1)
     label = np.ones((N, 1)) * M
-    continue_to_split = True
 
-    while M < N and continue_to_split:
+    while M < N:
         diam = np.zeros((M, 1))
         num = np.zeros((M, 1))
         for k in range(1, M+1): # compute the diameters of each cluster
@@ -81,14 +81,12 @@ def DIANA(data, point_distance=euclidean_distance):
         label = np.concatenate((label, label[:, -1].reshape(N,1)), 1)
         pos2, Tmed2 = [], 0
         #  separate i if the mean distance for element i in cluster k1 is large then the mean distance for element i in cluster k2 (element i has the largest mean distance in cluster k1)
-        continue_to_split = False
         while Tmax1 >= Tmed2 and len(pos1) > 1:
             # move element i from k1 to k2
             pos1 = np.setdiff1d(pos1, i)
             pos2 = np.union1d(pos2, i)
             # set the element i to a new label
             label[i, M] = M+1
-            continue_to_split = True
             # confusion: Tmax[M-1] = Tmax1
 
             T = D[pos1][:, pos1]

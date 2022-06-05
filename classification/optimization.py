@@ -9,7 +9,7 @@ np.set_printoptions(precision=4)
 def FANNY(data, k, prec):
     N, dim = data.shape
     # initial: weight / cluster membership
-    w = np.random.rand(N, k) 
+    w = np.random.rand(N, k)
     somma = np.sum(w, axis=1).reshape((N, 1))
     # normalization
     w = w /somma
@@ -25,7 +25,7 @@ def FANNY(data, k, prec):
         for c in range(k):
             w_c = w[:, c]
             w_c = np.power(w_c, 2).reshape((N,1))
-            m[c, :] = np.sum(w_c * data) / np.sum(w_c)
+            m[c, :] = np.sum(w_c * data, axis=0) / np.sum(w_c)
         #print("m: ", m)
 
         # update w
@@ -40,6 +40,8 @@ def FANNY(data, k, prec):
         #print("after normalization, w: {}\nw_old: {}".format(w, w_old))
 
         i += 1
+
+    print("#iteration = ", i)
 
     w_max = w.max(1).reshape((N, 1))
     label = np.where(w == w_max)[1].reshape((N, 1))+1 # label start with 1
