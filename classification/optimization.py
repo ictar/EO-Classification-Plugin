@@ -1,5 +1,5 @@
 import numpy as np
-from distance import *
+from .distance import *
 
 np.set_printoptions(precision=4)
 

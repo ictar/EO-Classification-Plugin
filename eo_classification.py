@@ -39,6 +39,7 @@ from .resources import *
 # Import the code for the dialog
 from .eo_classification_dialog import EO_ClassficationDialog
 import os.path
+from datetime import datetime
 
 import numpy as np
 from .classification import hierarchical, optimization, distance
@@ -273,7 +274,7 @@ class EO_Classfication:
             rlayer = QgsProject.instance().mapLayersByName(path)[0]
             self.RASTER_DS = gdal.Open(rlayer.dataProvider().dataSourceUri())
 
-        self.dlg.log_area.insertPlainText("Layer {} is open, band count: {}\n".format(path, self.RASTER_DS.RasterCount))
+        self.dlg.log_area.insertPlainText("[{}] Layer {} is open, band count: {}\n".format(datetime.now(), path, self.RASTER_DS.RasterCount))
 
         # show band information to select, default, all bands are selected
         band_statistics = ""
@@ -341,11 +342,11 @@ Projection:
         alg_name = self.dlg.comboBox_algorithm.currentText()
         alg_idx = self.dlg.comboBox_algorithm.currentIndex()
 
-        self.dlg.log_area.insertPlainText("""Classification algorithm: {} (index={})
+        self.dlg.log_area.insertPlainText("""[{}] Classification algorithm: {} (index={})
                 point distance method: {}
                 precision: {},
                 number of cluster: {},
-            Output file: {}\n""".format(alg_name, alg_idx, point_distance_method, precision, k_cluster, outname))
+            Output file: {}\n""".format(datetime.now(), alg_name, alg_idx, point_distance_method, precision, k_cluster, outname))
 
         return {
             "precision": precision,
@@ -373,18 +374,17 @@ Projection:
             gdalnumeric.BandReadAsArray(band) for band in bands
         ]).astype(dtype)
 
-        self.dlg.log_area.insertPlainText("selected band: {}\nRaster -> numpy.array, shape: {}\n".format(bands_num, data.shape))
+        self.dlg.log_area.insertPlainText("[{}] Selected band: {}\nRaster -> numpy.array, shape: {}\n".format(datetime.now(), bands_num, data.shape))
 
         return data  # shape:(bands, Y, X)
 
-    # read
     # TODO: write classfied result to raster
-    # ref: https://gis.stackexchange.com/questions/34082/creating-raster-layer-from-numpy-array-using-pyqgis
     # data: a numpy array, (x, y) = data.shape
     def write_array_to_raster(self, data, save_to, geotransform, SRID=4326):
         driver = gdal.GetDriverByName('GTiff')
 
         rows, cols = data.shape
+        # create a new raster data source
         dataset = driver.Create(
             save_to,
             cols, rows,
@@ -397,8 +397,10 @@ Projection:
         out_srs.ImportFromEPSG(SRID)
 
         dataset.SetProjection(out_srs.ExportToWkt())
-        dataset.GetRasterBand(1).WriteArray(data.T)
+        dataset.GetRasterBand(1).WriteArray(data)
         dataset.GetRasterBand(1).SetNoDataValue(NODATA)
+        # close raster file
+        dataset = None 
 
     # TODO： write resulted narray to raster with original data reserved
     # ref: https://gis.stackexchange.com/questions/318050/writing-numpy-arrays-to-irregularly-shaped-multiband-raster
@@ -461,31 +463,28 @@ Projection:
             "cityblock distance": distance.cityblock_distance,
         }
 
-        #data = self._transfer_data_with_coordinate(data)
-        
-        #self.dlg.log_area.insertPlainText("after transfer data to 2D with coordiantes, shape: {}".format(data.shape))
+        k_cluster = params["k_cluster"]
+        precision = params["precision"]
 
         if params["alg_idx"] == 0:
-            labels, _ = optimization.FANNY(data, params["k_cluster"], params["precision"])
+            # validate the parameters
+            if not k_cluster or k_cluster <= 0:
+                self.dlg.log_area.insertPlainText("[{}] parameter 'number of cluster' is required and should be a positive integer".format(datetime.now()))
+                return
+
+            if not precision or precision < 0:
+                    self.dlg.log_area.insertPlainText("[{}] parameter 'precision' is required".format(datetime.now()))
+                    return
+            # run
+            labels, _, _ = optimization.FANNY(data, k_cluster, precision)
         elif params["alg_idx"] == 1:
             labels = hierarchical.DIANA(data, point_distance_methods[params["point_distance_method"]])
 
-        save_data = labels[:, -1].reshape((nX, nY))
-        
-        
-        #if params["alg_idx"] in [0, 1]:
-        #    save_data = self._clses_2D_label(cls, data.shape[1:])
-        #if params["alg_idx"] in [2]:
-        #    save_data = self._cls_2D_label(cls, data.shape[1:])
+        self.dlg.log_area.insertPlainText("[{}] Classification algorithm finishes. Begin to save the result\n".format(datetime.now()))
+
+        save_data = labels[:, -1].reshape((nY, nX))
         
          # save to raster file
-        self.write_array_to_raster(save_data, params["outname"], self.RASTER_DS.GetGeoTransform)
+        self.write_array_to_raster(save_data, params["outname"], self.RASTER_DS.GetGeoTransform())
+        self.dlg.log_area.insertPlainText("[{}] The raster file {} has already saved".format(datetime.now(), params["outname"]))
 
-
-    # TODO: transfer data with label into a numpy array
-    # whose index corresponding to coordinates and value to class (result[i,j]=label)
-    def _cls_2D_label(self, cls, shape):
-        result = np.ones(shape) * NODATA
-        for ele in cls:
-            result[ele[-2], ele[-3]] = ele[-1]
-        return result
