@@ -467,7 +467,8 @@ Projection:
             # run
             labels, _, _ = optimization.FANNY(data, k_cluster, precision)
         elif params["alg_idx"] == 1:
-            labels = hierarchical.DIANA(data, point_distance_methods[params["point_distance_method"]])
+            labels, silhouette_index, n_cluster = hierarchical.DIANA(data, point_distance_methods[params["point_distance_method"]])
+            self.dlg.log_area.insertPlainText("silhouette index: {}\nnumber of cluster: {}".format(", ".join(silhouette_index), n_cluster))
 
         self.dlg.log_area.insertPlainText("[{}] Classification algorithm finishes. Begin to save the result\n".format(datetime.now()))
 

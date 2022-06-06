@@ -43,6 +43,7 @@ def DIANA(data, point_distance=euclidean_distance):
     # labels (N, 1)
     label = np.ones((N, 1)) * M
 
+    maxSilM, sils = 0, []
     while M < N:
         diam = np.zeros((M, 1))
         num = np.zeros((M, 1))
@@ -102,4 +103,42 @@ def DIANA(data, point_distance=euclidean_distance):
         #print("M={}\nlabel={}".format(M, label))
         M += 1
 
-    return np.concatenate((data, label[:, -1].reshape(N,1)), 1)
+        # silhouette index
+        ## dist[i,k] = distance from element i to cluster k
+        dist = np.zeros((N, M))
+        a, b, sil = np.zeros(N), np.zeros(N), np.zeros(N)
+        for n in range(N):
+            n_in_cluster = int(label[n, -1])
+            for k in range(1, M+1):
+                pos, = np.where(label[:, M-1] == k)
+                dist[n,k-1] = np.sum(D[n][pos.astype('int64')])
+                
+                if k == n_in_cluster and len(pos)>1:
+                    dist[n, k-1] = dist[n, k-1] / (len(pos)-1)
+                elif len(pos) > 0:
+                    dist[n, k-1] = dist[n, k-1] / len(pos)
+            
+            # a[n] = distance from n to other elements in the same cluster
+            a[n] = dist[n, n_in_cluster-1]
+            # b[n] = minimum distance from n to other clusters
+            other_clusters = np.setdiff1d(np.arange(M), n_in_cluster-1)
+            #print(n, n_in_cluster, other_clusters, type(other_clusters), other_clusters.shape, dist[n])
+            if other_clusters.size > 0:
+                b[n] = np.min(dist[n][other_clusters])
+            else: b[n] = 0
+
+            ab = np.max([a[n], b[n]])
+            if ab != 0:
+                sil[n] = (b[n]-a[n])/ab
+        silM = np.mean(sil)
+        print("silhouette index: ", silM)
+        sils.append(silM)
+
+        if silM > maxSilM: maxSilM = silM
+        else:
+            # abandom the last trial
+            print("silhouette index is worse in iter ", M-1)
+            return np.concatenate((data, label[:, -2].reshape(N,1)), 1), sils, M-1
+
+
+    return np.concatenate((data, label[:, -1].reshape(N,1)), 1), sils, M
