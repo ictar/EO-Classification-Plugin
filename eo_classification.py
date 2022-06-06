@@ -252,7 +252,7 @@ class EO_Classfication:
 
     # set output file
     def select_output_file(self):
-        filename, _filter = QFileDialog.getOpenFileName(
+        filename, _filter = QFileDialog.getSaveFileName(
             self.dlg,
         )
         QgsMessageLog.logMessage("Output file {} is selected".format(filename), level=Qgis.Info)
@@ -342,11 +342,15 @@ Projection:
         alg_name = self.dlg.comboBox_algorithm.currentText()
         alg_idx = self.dlg.comboBox_algorithm.currentIndex()
 
+        # if load result after finish
+        load_result = self.dlg.checkBox_loadresult.isChecked()
+
         self.dlg.log_area.insertPlainText("""[{}] Classification algorithm: {} (index={})
                 point distance method: {}
                 precision: {},
                 number of cluster: {},
-            Output file: {}\n""".format(datetime.now(), alg_name, alg_idx, point_distance_method, precision, k_cluster, outname))
+            Output file: {},
+            Load output: {}\n""".format(datetime.now(), alg_name, alg_idx, point_distance_method, precision, k_cluster, outname, load_result))
 
         return {
             "precision": precision,
@@ -355,6 +359,7 @@ Projection:
             "alg_name": alg_name,
             "alg_idx": alg_idx,
             "outname": outname,
+            "load_result": load_result,
         }
 
     # transfer raster to a numpy array
@@ -378,7 +383,7 @@ Projection:
 
         return data  # shape:(bands, Y, X)
 
-    # TODO: write classfied result to raster
+    # write classfied result to raster
     # data: a numpy array, (x, y) = data.shape
     def write_array_to_raster(self, data, save_to, geotransform, SRID=4326):
         driver = gdal.GetDriverByName('GTiff')
@@ -402,7 +407,7 @@ Projection:
         # close raster file
         dataset = None 
 
-    # TODO： write resulted narray to raster with original data reserved
+    # write resulted narray to raster with original data reserved
     # ref: https://gis.stackexchange.com/questions/318050/writing-numpy-arrays-to-irregularly-shaped-multiband-raster
     def write_array_to_raster_multiband(self, data, save_to, geotransform, SRID=4326):
 
@@ -478,4 +483,9 @@ Projection:
         self.write_array_to_raster_multiband(save_data, params["outname"], self.RASTER_DS.GetGeoTransform())
         
         self.dlg.log_area.insertPlainText("[{}] The raster file {} has already saved".format(datetime.now(), params["outname"]))
+
+        # load output
+        if params.get("load_result", False):
+            out_rlayer = QgsRasterLayer(params["outname"], os.path.split(params["outname"])[-1])
+            QgsProject.instance().addMapLayer(out_rlayer)
 

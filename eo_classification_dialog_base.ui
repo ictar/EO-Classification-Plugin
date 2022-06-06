@@ -323,6 +323,19 @@
       <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
      </property>
     </widget>
+    <widget class="QCheckBox" name="checkBox_loadresult">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>170</y>
+       <width>261</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Open output file after running algorithm</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="tab_plot">
     <attribute name="title">
