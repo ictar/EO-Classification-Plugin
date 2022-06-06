@@ -404,42 +404,31 @@ Projection:
 
     # TODO： write resulted narray to raster with original data reserved
     # ref: https://gis.stackexchange.com/questions/318050/writing-numpy-arrays-to-irregularly-shaped-multiband-raster
-    def write_array_to_raster_multiband(self, data, save_to,
-                                        xres, yres,
-                                        xmin, ymin,
-                                        nrows, ncols,
-                                        ncels, nbands
-                                        ):
-        cells = np.random.choice(np.arange(nrows * ncols), ncels, replace=False)
-        lats = np.arange(ymin, ymin + nrows * yres, yres)
-        lons = np.arange(xmin, xmin + ncols * xres, xres)
-        lats, lons = np.meshgrid(lats, lons)
-        lats, lons = lats.ravel()[cells]
-        # make an empty 1 band array to fill with labels
-        array = np.empty((nrows, ncols), dtype=np.int)
-        xmin, ymin, xmax, ymax = [lons.min(), lats.min(), lons.max(), lats.max()]
-        geotransform = (xmin, xres, 0, ymax, 0, -yres)
+    def write_array_to_raster_multiband(self, data, save_to, geotransform, SRID=4326):
 
-        # open the file
-        out_raster = gdal.GetDriverByName('GTiff'). \
-            Create(save_to, ncols, nrows, nbands, gdal.GDT_Float32)
-        out_raster.SetGeoTransform(geotransform)
+        driver = gdal.GetDriverByName('GTiff')
 
-        # Loop bands
+        nbands, rows, cols = data.shape
+        # create a new raster data source
+        dataset = driver.Create(
+            save_to,
+            cols, rows,
+            nbands, gdal.GDT_Float32,
+        )
+
+        dataset.SetGeoTransform(geotransform)
+
+        out_srs = osr.SpatialReference()
+        out_srs.ImportFromEPSG(SRID)
+
+        dataset.SetProjection(out_srs.ExportToWkt())
+
         for i in range(nbands):
-            # Init array with nodata
-            array[:] = NODATA
-            # loop lat/lons inc. index j
-            for j, (lon, lat) in enumerate(zip(lons, lats)):
-                # calc x, y pixel index
-                x = math.floor((lon - xmin) / xres)
-                y = math.floor((lat - ymin) / xres)
-                # TODO: fill the array
+            dataset.GetRasterBand(i+1).WriteArray(data[i])
+            dataset.GetRasterBand(i+1).SetNoDataValue(NODATA)
 
-            out_raster.GetRasterBand(i + 1).WriteArray(array)
-            out_raster.GetRasterBand(i + 1).SetNoDataValue(NODATA)
-
-        del out_raster
+        # close raster file
+        dataset = None
 
     
     def unsupervised_classification(self):
@@ -448,7 +437,7 @@ Projection:
 
         data = self.raster_to_array()
         (nband, nY, nX) = data.shape
-        data = data.reshape((nband, nY*nX)).reshape((nY*nX, nband))
+        data = data.reshape((nband, nY*nX)).transpose()
 
         params = self.load_classify_config()
 
@@ -482,9 +471,10 @@ Projection:
 
         self.dlg.log_area.insertPlainText("[{}] Classification algorithm finishes. Begin to save the result\n".format(datetime.now()))
 
-        save_data = labels[:, -1].reshape((nY, nX))
+        save_data = labels.transpose().reshape((nband+1, nY, nX))
         
-         # save to raster file
-        self.write_array_to_raster(save_data, params["outname"], self.RASTER_DS.GetGeoTransform())
+        # save to raster file
+        self.write_array_to_raster_multiband(save_data, params["outname"], self.RASTER_DS.GetGeoTransform())
+        
         self.dlg.log_area.insertPlainText("[{}] The raster file {} has already saved".format(datetime.now(), params["outname"]))
 
