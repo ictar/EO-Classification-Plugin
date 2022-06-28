@@ -447,7 +447,7 @@ Projection:
         params = self.load_classify_config()
 
         algorithms = {
-            0: optimization.FANNY,
+            0: optimization.FUZZY,
             1: hierarchical.DIANA,
         }
         cls = None
@@ -470,7 +470,7 @@ Projection:
                     self.dlg.log_area.insertPlainText("[{}] parameter 'precision' is required".format(datetime.now()))
                     return
             # run
-            labels, _, _ = optimization.FANNY(data, k_cluster, precision)
+            labels, _, _ = optimization.FUZZY(data, k_cluster, precision)
         elif params["alg_idx"] == 1:
             labels, silhouette_index, n_cluster = hierarchical.DIANA(data, point_distance_methods[params["point_distance_method"]])
             self.dlg.log_area.insertPlainText("silhouette index: {}\nnumber of cluster: {}".format(", ".join(silhouette_index), n_cluster))

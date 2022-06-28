@@ -1,12 +1,11 @@
 import numpy as np
-from .distance import *
 
 np.set_printoptions(precision=4)
 
 # param data: (nX*nY, band+2)
 # param k: number of cluster
 # param prec: precision
-def FANNY(data, k, prec):
+def FUZZY(data, k, prec):
     N, dim = data.shape
     # initial: weight / cluster membership
     w = np.random.rand(N, k)
