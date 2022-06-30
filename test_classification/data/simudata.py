@@ -3,50 +3,51 @@ import matplotlib.pyplot as plt
 
 # reference: https://pythonhosted.org/scikit-fuzzy/auto_examples/plot_cmeans.html
 
-# define three cluster centers
-centers = [
-    [4,2],
-    [1,7],
-    [5,6],
-]
+def tmp():
+    # define three cluster centers
+    centers = [
+        [4,2],
+        [1,7],
+        [5,6],
+    ]
 
-# deine three cluster sigmas in x and y, respectively
-sigmas = [
-    [0.8, 0.3],
-    [0.3, 0.5],
-    [1.1, 0.7],
-]
+    # define three cluster sigmas in x and y, respectively
+    sigmas = [
+        [0.8, 0.3],
+        [0.3, 0.5],
+        [1.1, 0.7],
+    ]
 
-# generate test data
-np.random.seed(42) # set seed for reproducibility
+    # generate test data
+    np.random.seed(42) # set seed for reproducibility
 
-xpts = np.zeros(1)
-ypts = np.zeros(1)
-labels = np.zeros(1)
+    xpts = np.zeros(1)
+    ypts = np.zeros(1)
+    labels = np.zeros(1)
 
-data_num_per_cluster = 200
-for i, ((xmu, ymu), (xsigma, ysigma)) in enumerate(zip(centers, sigmas)):
-    xpts = np.hstack((xpts, np.random.standard_normal(data_num_per_cluster) * xsigma + xmu))
-    ypts = np.hstack((ypts, np.random.standard_normal(data_num_per_cluster) * ysigma + ymu))
-    labels = np.hstack((labels, np.ones(data_num_per_cluster)*i))
+    data_num_per_cluster = 200
+    for i, ((xmu, ymu), (xsigma, ysigma)) in enumerate(zip(centers, sigmas)):
+        xpts = np.hstack((xpts, np.random.standard_normal(data_num_per_cluster) * xsigma + xmu))
+        ypts = np.hstack((ypts, np.random.standard_normal(data_num_per_cluster) * ysigma + ymu))
+        labels = np.hstack((labels, np.ones(data_num_per_cluster)*i))
 
-print(xpts.shape, ypts.shape, labels.shape)
-dim, cluster_num, data_num = 2, len(sigmas), xpts.shape[0]
-xpts = xpts.reshape((data_num,1))
-ypts = ypts.reshape((data_num,1))
-labels = labels.reshape((data_num,1))
-# save
-dataset = np.concatenate((xpts, ypts, labels), 1)
-fname = "data_{}_{}_{}.txt".format(dim, cluster_num, data_num)
-np.savetxt(fname, dataset)
+    print(xpts.shape, ypts.shape, labels.shape)
+    dim, cluster_num, data_num = 2, len(sigmas), xpts.shape[0]
+    xpts = xpts.reshape((data_num,1))
+    ypts = ypts.reshape((data_num,1))
+    labels = labels.reshape((data_num,1))
+    # save
+    dataset = np.concatenate((xpts, ypts, labels), 1)
+    fname = "data_{}_{}_{}.txt".format(dim, cluster_num, data_num)
+    np.savetxt(fname, dataset)
 
-# visualize the test data
-fig0, ax0 = plt.subplots()
-colors = ['b', 'orange', 'g', 'r', 'c', 'm', 'y', 'k', 'Brown', 'ForestGreen']
-for label in range(cluster_num):
-    ax0.plot(xpts[labels==label], ypts[labels == label], '.', color=colors[label])
-ax0.set_title("Test data: 200 points x{} clusters.".format(cluster_num))
-plt.show()
+    # visualize the test data
+    fig0, ax0 = plt.subplots()
+    colors = ['b', 'orange', 'g', 'r', 'c', 'm', 'y', 'k', 'Brown', 'ForestGreen']
+    for label in range(cluster_num):
+        ax0.plot(xpts[labels==label], ypts[labels == label], '.', color=colors[label])
+    ax0.set_title("Test data: 200 points x{} clusters.".format(cluster_num))
+    plt.show()
 
 """"
 Data simulation base on a stochastic model

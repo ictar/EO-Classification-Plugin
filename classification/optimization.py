@@ -40,7 +40,7 @@ def FUZZY(data, k, prec):
 
         i += 1
 
-    print("#iteration = ", i)
+    #print("#iteration = ", i)
 
     w_max = w.max(1).reshape((N, 1))
     label = np.where(w == w_max)[1].reshape((N, 1))+1 # label start with 1

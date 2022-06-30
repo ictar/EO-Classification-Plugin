@@ -7,7 +7,7 @@ import unittest
 import numpy as np
 
 from classification.optimization import FUZZY
-from classification.statistics import fanny_misclassified_number
+from classification.statistics import fuzzy_misclassified_number
 
 class TestOptimization(unittest.TestCase):
 
@@ -26,7 +26,7 @@ class TestOptimization(unittest.TestCase):
         # in matlab: [label, w, med] = FUZZY(data, 2, 0.01)
         tlabels = np.array([2, 2, 2, 2, 1, 1, 1, 1])
         tcenters = np.array([1.5569,0.0241]).reshape((2,1))
-        self.assertEqual(fanny_misclassified_number(tlabels, tcenters,labels[:, -1], m, 2), 0)
+        self.assertEqual(fuzzy_misclassified_number(tlabels, tcenters,labels[:, -1], m, 2), 0)
 
     def test_FUZZY_2D_8(self):
         print("test FUZZY with 2D data (#data=8)")
@@ -39,7 +39,7 @@ class TestOptimization(unittest.TestCase):
         # in matlab: [label, w, med] = FUZZY(data, 2, 0.01)
         tlabels = np.array([2, 1, 1, 2, 2, 2, 1, 1])
         tcenters = np.array([[2.8800, 4.4556], [1.1048, 0.4741]]).reshape((2,2))
-        self.assertEqual(fanny_misclassified_number(tlabels, tcenters,labels[:, -1], m, 2), 0)
+        self.assertEqual(fuzzy_misclassified_number(tlabels, tcenters,labels[:, -1], m, 2), 0)
 
 
     def test_FUZZY_2D_100(self):
@@ -53,7 +53,7 @@ class TestOptimization(unittest.TestCase):
         # in matlab: [label, w, med] = FUZZY(data, 2, 0.01)
         tlabels = np.array([2, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 2, 2, 1, 1, 1, 1, 2, 2, 1, 2, 2, 2, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 2, 2, 1, 1, 2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 1, 2, 2, 2, 1, 1, 2, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1])
         tcenters = np.array([[3.9171, 4.0407], [1.0349, 0.9986]]).reshape((2,2))
-        self.assertEqual(fanny_misclassified_number(tlabels, tcenters,labels[:, -1], m, 2), 0)
+        self.assertEqual(fuzzy_misclassified_number(tlabels, tcenters,labels[:, -1], m, 2), 0)
 
 
 
