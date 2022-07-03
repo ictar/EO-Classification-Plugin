@@ -42,7 +42,7 @@ import os.path
 from datetime import datetime
 
 import numpy as np
-from .classification import hierarchical, optimization, distance
+from .classification import hierarchical, optimization, distance, statistics
 
 try:
     from osgeo import gdal
@@ -224,6 +224,9 @@ class EO_Classfication:
             # click the button to run the classification
             self.dlg.do_classify_btn.clicked.connect(self.unsupervised_classification)
 
+            # click the combo to select algorithms
+            self.dlg.comboBox_algorithm.currentTextChanged.connect(self.select_algorithm)
+
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
@@ -257,6 +260,19 @@ class EO_Classfication:
         )
         QgsMessageLog.logMessage("Output file {} is selected".format(filename), level=Qgis.Info)
         self.dlg.lineEdit_output.setText(filename)
+
+    # set algorithm
+    def select_algorithm(self):
+        alg_idx = self.dlg.comboBox_algorithm.currentIndex()
+        if alg_idx == 0: # FUZZY
+            self.dlg.lineEdit_precision.setEnabled(True)
+        if alg_idx == 1: #DIANA
+            # disable precision
+            # check if pixel size is too large
+            psize = self.RASTER_DS.RasterXSize * self.RASTER_DS.RasterYSize
+            if psize > 10000:
+                self.dlg.label_method_warn.setText("The number of data points is too large \nsuch that the running time of DIANA algorithm \nmay consume unacceptable time and memory!!!!")
+            self.dlg.lineEdit_precision.setEnabled(False)
 
     # read input
     # ref: https://automating-gis-processes.github.io/2016/Lesson7-read-raster-array.html
@@ -303,6 +319,7 @@ class EO_Classfication:
             )
 
         # show layer properties
+        self.dlg.layer_info_browser.clear()
         self.dlg.layer_info_browser.append("""Dimensions:
     x size = {},
     y size = {}
@@ -453,8 +470,8 @@ Projection:
         cls = None
 
         point_distance_methods = {
-            "euclidean distance": distance.euclidean_distance,
-            "cityblock distance": distance.cityblock_distance,
+            "euclidean distance": {"method": distance.euclidean_distance, "metrix": "euclidean"},
+            "cityblock distance": {"method": distance.cityblock_distance, "metrix": "cityblock"},
         }
 
         k_cluster = params["k_cluster"]
@@ -472,17 +489,30 @@ Projection:
             # run
             labels, _, _ = optimization.FUZZY(data, k_cluster, precision)
         elif params["alg_idx"] == 1:
-            labels, silhouette_index, n_cluster = hierarchical.DIANA(data, point_distance_methods[params["point_distance_method"]])
-            self.dlg.log_area.insertPlainText("silhouette index: {}\nnumber of cluster: {}".format(", ".join(silhouette_index), n_cluster))
+            if not k_cluster or k_cluster <= 0:
+                k_cluster = -1
 
-        self.dlg.log_area.insertPlainText("[{}] Classification algorithm finishes. Begin to save the result\n".format(datetime.now()))
+            labels, silhouette_index, _ = hierarchical.DIANA(data, k_cluster, point_distance_methods[params["point_distance_method"]]["metrix"])
+
+        # clear the garbage memory
+        import gc
+        gc.collect()
+
+        # calculate the index and show
+        si = statistics.silhouette_score(labels[:,:-1], labels[:, -1].reshape(-1,1), point_distance_methods[params["point_distance_method"]]["metrix"])
+
+        self.dlg.log_area.insertPlainText("""
+            The Silhouette Index:
+            {}
+
+        [{}] Classification algorithm finishes. Begin to save the result\n""".format(si, datetime.now()))
 
         save_data = labels.transpose().reshape((nband+1, nY, nX))
         
         # save to raster file
         self.write_array_to_raster_multiband(save_data, params["outname"], self.RASTER_DS.GetGeoTransform())
         
-        self.dlg.log_area.insertPlainText("[{}] The raster file {} has already saved".format(datetime.now(), params["outname"]))
+        self.dlg.log_area.insertPlainText("[{}] The raster file {} has already saved\n\n".format(datetime.now(), params["outname"]))
 
         # load output
         if params.get("load_result", False):
