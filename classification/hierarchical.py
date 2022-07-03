@@ -129,17 +129,12 @@ def DIANA(data, n_clusters=-1, point_distance='euclidean'):
 
     # distance matrix between each point
     D = cdist(data, data, point_distance)
-    with open("/Users/elexu/Downloads/log", "w+") as f:
-        from datetime import datetime
-        f.write("""[{}] done for distance matrix
-            """.format(datetime.now()))
 
-    # number of iteration / current labels ([1..M])
+    # number of iteration / current labels ([1..M]) / current number of clusters
     M = 1
     # labels (N, 1)
     label = np.ones((N, 2))
 
-    maxSilM, sils = 0, []
     while M < N and M < n_clusters:
         label[:, 0] = label[:, 1].copy()
         diam = np.zeros((M, 1))
@@ -150,6 +145,8 @@ def DIANA(data, n_clusters=-1, point_distance='euclidean'):
             num[k-1] = len(pos) # nuber of elements in cluster k
 
         diamMax, k1 = diam.max(0), diam.argmax(0)+1 # k1 = cluster with largest diameter
+        if diamMax == 0:
+            numMax, k1 = num.max(0), num.argmax(0)+1
 
         pos1, = np.where(label[:, 0] == k1)
         # dissimilarity table for cluster k1
@@ -165,6 +162,7 @@ def DIANA(data, n_clusters=-1, point_distance='euclidean'):
         label[:, 1] = label[:, 0].copy()
         pos2, Tmed2 = [], 0
         #  separate i if the mean distance for element i in cluster k1 is large then the mean distance for element i in cluster k2 (element i has the largest mean distance in cluster k1)
+        #print(M, i, Tmax1, Tmed2)
         while Tmax1 >= Tmed2 and len(pos1) > 1:
             # move element i from k1 to k2
             pos1 = np.setdiff1d(pos1, i)
@@ -181,22 +179,8 @@ def DIANA(data, n_clusters=-1, point_distance='euclidean'):
                 i = pos1[iMax1] # next candidate
                 T = D[i][pos2.astype('int64')]
                 Tmed2 = np.mean(T)
+            #print('--> ', i, Tmax1, Tmed2)
                 
         M += 1
 
-        # silhouette index
-        if M < N:
-            silM = silhouette_score(data, label[:, -1], metric = 'euclidean')
-            #print("silhouette index: ", silM)
-            sils.append(silM)
-
-            '''
-            if silM > maxSilM: maxSilM = silM
-            else:
-                # abandom the last trial
-                #print("silhouette index is worse in iter ", M-1)
-                return np.concatenate((data, label[:, 0].reshape(N,1)), 1), sils, M-1
-            '''
-
-
-    return np.concatenate((data, label[:, 1].reshape(N,1)), 1), sils, M
+    return np.concatenate((data, label[:, 1].reshape(N,1)), 1), M

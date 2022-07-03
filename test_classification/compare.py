@@ -100,7 +100,7 @@ def performance_DIANA(dataset, tlabels, k):
 
     # time
     start = time.process_time_ns()
-    dlabels, idx, n_cluster = DIANA(dataset, k)
+    dlabels, n_cluster = DIANA(dataset, k)
     end = time.process_time_ns()
     performance['elapse_time'] = end - start
 
@@ -146,12 +146,11 @@ def compare_fuzzy_diana(dir, save_to):
         import gc
         gc.collect()
 
-
     # save to file
     with open(save_to, "w") as f:
         json.dump(performance, f)
 
 if __name__ == '__main__':
     #compare_fuzzy_skfuzzy()
-    #compare_fuzzy_diana(r'./data/compare/', "compare.json")
+    compare_fuzzy_diana(r'./data/compare/', "compare.json")
     compare_fuzzy_diana(r'./data/performance/', "performance.json")

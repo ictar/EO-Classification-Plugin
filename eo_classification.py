@@ -492,7 +492,7 @@ Projection:
             if not k_cluster or k_cluster <= 0:
                 k_cluster = -1
 
-            labels, silhouette_index, _ = hierarchical.DIANA(data, k_cluster, point_distance_methods[params["point_distance_method"]]["metrix"])
+            labels, _ = hierarchical.DIANA(data, k_cluster, point_distance_methods[params["point_distance_method"]]["metrix"])
 
         # clear the garbage memory
         import gc
