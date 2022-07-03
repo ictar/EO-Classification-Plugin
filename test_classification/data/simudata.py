@@ -74,3 +74,45 @@ OUTPUT:
 """
 def simudata(Ntot, Nts, Ncl, Nb, mu_cl, C_cl, p_cl):
     pass
+
+try:
+    from osgeo import gdal
+    from osgeo import gdalnumeric
+    from osgeo import gdal_array
+    from osgeo import osr
+except ImportError:
+    import gdal
+
+NODATA = -9999   
+def write_array_to_raster_multiband(data, save_to, geotransform, SRID=4326):
+    
+        driver = gdal.GetDriverByName('GTiff')
+
+        nbands, rows, cols = data.shape
+        # create a new raster data source
+        dataset = driver.Create(
+            save_to,
+            cols, rows,
+            nbands, gdal.GDT_Float32,
+        )
+
+        dataset.SetGeoTransform(geotransform)
+
+        out_srs = osr.SpatialReference()
+        out_srs.ImportFromEPSG(SRID)
+
+        dataset.SetProjection(out_srs.ExportToWkt())
+
+        for i in range(nbands):
+            dataset.GetRasterBand(i+1).WriteArray(data[i])
+            dataset.GetRasterBand(i+1).SetNoDataValue(NODATA)
+
+        # close raster file
+        dataset = None
+
+if __name__ == '__main__':
+    from scipy.io import loadmat
+    dname = r'performance/data_10000.mat'
+    mat = loadmat(dname)
+    dataset = mat['mix']
+    write_array_to_raster_multiband(dataset, "data_10000.tiff")

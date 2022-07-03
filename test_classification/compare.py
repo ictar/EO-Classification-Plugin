@@ -125,14 +125,16 @@ def compare_fuzzy_diana(dir, save_to):
         if mat is None:
             print(fname, " is invalid!! Skip!")
             continue
+        print("[BEGIN]", fname)
         dataset = mat['mix']
         tlabels = mat['label']
         k = mat['C_cl'].shape[0]
-        tcenters = mat['mu_ts']
+        tcenters = mat['mu_cl']
         tp = {
             'C_cl': mat['C_cl'].tolist(), # model cov. Matrices of cluster    (Ncl x Nb x Nb)
-            'mu_ts': mat['mu_ts'].tolist(), # estimated mean clusters                          (Ncl x Nb)
+            'mu_cl': mat['mu_cl'].tolist(), # estimated mean clusters                          (Ncl x Nb)
             'n_cluster': k,
+            'n_samples': dataset.shape[0],
         }
         # play FUZZY
         tp['fuzzy'] = performance_fuzzy(dataset, tlabels, k, tcenters)
@@ -140,6 +142,10 @@ def compare_fuzzy_diana(dir, save_to):
         tp['diana'] = performance_DIANA(dataset, tlabels, k)
 
         performance[fname] = tp
+        print("[END]", fname)
+        import gc
+        gc.collect()
+
 
     # save to file
     with open(save_to, "w") as f:
@@ -147,4 +153,5 @@ def compare_fuzzy_diana(dir, save_to):
 
 if __name__ == '__main__':
     #compare_fuzzy_skfuzzy()
-    compare_fuzzy_diana(r'./data/compare/', "compare.json")
+    #compare_fuzzy_diana(r'./data/compare/', "compare.json")
+    compare_fuzzy_diana(r'./data/performance/', "performance.json")

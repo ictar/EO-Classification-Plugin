@@ -438,7 +438,7 @@ Projection:
     
     def unsupervised_classification(self):
         # change to "log" tab
-        self.dlg.classify_tabs.setCurrentIndex(3)
+        self.dlg.classify_tabs.setCurrentIndex(2)
 
         data = self.raster_to_array()
         (nband, nY, nX) = data.shape

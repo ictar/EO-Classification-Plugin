@@ -19,7 +19,9 @@ def fuzzy_misclassified_number(tlabels, tcenters, flabels, fcenters, prec):
     for i in range(len(tmp)):
         lmapping[i] = tmp[i]+1
 
-    flabels_corr = np.array([lmapping[i-1] for i in flabels]).reshape(-1)
+    flabels_corr = np.array([lmapping[i-1] for i in flabels]).reshape(tlabels.shape)
+
+    #print(tlabels.shape, flabels_corr.shape, (tlabels == flabels_corr).shape, np.count_nonzero(tlabels == flabels_corr))
     return np.size(tlabels) - np.count_nonzero(tlabels == flabels_corr)
 
 
@@ -28,4 +30,12 @@ def fuzzy_misclassified_number(tlabels, tcenters, flabels, fcenters, prec):
 #   tlabels = true label
 #   dlabels = label identified by DIANA
 def diana_misclassified_number(tlabels, dlabels):
+    dlabels = dlabels.reshape(tlabels.shape)
+    #print(tlabels.shape, dlabels.shape, (tlabels == dlabels).shape, np.count_nonzero(tlabels == dlabels))
     return np.size(tlabels) - np.count_nonzero(tlabels == dlabels)
+
+
+# index
+from sklearn.metrics import silhouette_score
+def silhouette(data, label, metric='euclidean'):
+    return silhouette_score(data, label, metric)
