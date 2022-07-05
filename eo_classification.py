@@ -400,7 +400,7 @@ Projection:
         dataset.GetRasterBand(1).WriteArray(data.T)
         dataset.GetRasterBand(1).SetNoDataValue(NODATA)
 
-    # TODO： write resulted n array to raster with original data reserved
+    # TODO： write resulted narray to raster with original data reserved
     # ref: https://gis.stackexchange.com/questions/318050/writing-numpy-arrays-to-irregularly-shaped-multiband-raster
     def write_array_to_raster_multiband(self, data, save_to,
                                         xres, yres,
