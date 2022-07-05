@@ -39,9 +39,10 @@ from .resources import *
 # Import the code for the dialog
 from .eo_classification_dialog import EO_ClassficationDialog
 import os.path
+from datetime import datetime
 
 import numpy as np
-from .classification import hierarchical, optimization, distance
+from .classification import hierarchical, optimization, distance, statistics
 
 try:
     from osgeo import gdal
@@ -223,6 +224,9 @@ class EO_Classfication:
             # click the button to run the classification
             self.dlg.do_classify_btn.clicked.connect(self.unsupervised_classification)
 
+            # click the combo to select algorithms
+            self.dlg.comboBox_algorithm.currentTextChanged.connect(self.select_algorithm)
+
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
@@ -251,11 +255,24 @@ class EO_Classfication:
 
     # set output file
     def select_output_file(self):
-        filename, _filter = QFileDialog.getOpenFileName(
+        filename, _filter = QFileDialog.getSaveFileName(
             self.dlg,
         )
         QgsMessageLog.logMessage("Output file {} is selected".format(filename), level=Qgis.Info)
         self.dlg.lineEdit_output.setText(filename)
+
+    # set algorithm
+    def select_algorithm(self):
+        alg_idx = self.dlg.comboBox_algorithm.currentIndex()
+        if alg_idx == 0: # FUZZY
+            self.dlg.lineEdit_precision.setEnabled(True)
+        if alg_idx == 1: #DIANA
+            # disable precision
+            # check if pixel size is too large
+            psize = self.RASTER_DS.RasterXSize * self.RASTER_DS.RasterYSize
+            if psize > 10000:
+                self.dlg.label_method_warn.setText("The number of data points is too large \nsuch that the running time of DIANA algorithm \nmay consume unacceptable time and memory!!!!")
+            self.dlg.lineEdit_precision.setEnabled(False)
 
     # read input
     # ref: https://automating-gis-processes.github.io/2016/Lesson7-read-raster-array.html
@@ -273,7 +290,7 @@ class EO_Classfication:
             rlayer = QgsProject.instance().mapLayersByName(path)[0]
             self.RASTER_DS = gdal.Open(rlayer.dataProvider().dataSourceUri())
 
-        self.dlg.log_area.insertPlainText("Layer {} is open, band count: {}\n".format(path, self.RASTER_DS.RasterCount))
+        self.dlg.log_area.insertPlainText("[{}] Layer {} is open, band count: {}\n".format(datetime.now(), path, self.RASTER_DS.RasterCount))
 
         # show band information to select, default, all bands are selected
         band_statistics = ""
@@ -302,6 +319,7 @@ class EO_Classfication:
             )
 
         # show layer properties
+        self.dlg.layer_info_browser.clear()
         self.dlg.layer_info_browser.append("""Dimensions:
     x size = {},
     y size = {}
@@ -341,11 +359,15 @@ Projection:
         alg_name = self.dlg.comboBox_algorithm.currentText()
         alg_idx = self.dlg.comboBox_algorithm.currentIndex()
 
-        self.dlg.log_area.insertPlainText("""Classification algorithm: {} (index={})
+        # if load result after finish
+        load_result = self.dlg.checkBox_loadresult.isChecked()
+
+        self.dlg.log_area.insertPlainText("""[{}] Classification algorithm: {} (index={})
                 point distance method: {}
                 precision: {},
                 number of cluster: {},
-            Output file: {}\n""".format(alg_name, alg_idx, point_distance_method, precision, k_cluster, outname))
+            Output file: {},
+            Load output: {}\n""".format(datetime.now(), alg_name, alg_idx, point_distance_method, precision, k_cluster, outname, load_result))
 
         return {
             "precision": precision,
@@ -354,6 +376,7 @@ Projection:
             "alg_name": alg_name,
             "alg_idx": alg_idx,
             "outname": outname,
+            "load_result": load_result,
         }
 
     # transfer raster to a numpy array
@@ -373,18 +396,17 @@ Projection:
             gdalnumeric.BandReadAsArray(band) for band in bands
         ]).astype(dtype)
 
-        self.dlg.log_area.insertPlainText("selected band: {}\nRaster -> numpy.array, shape: {}\n".format(bands_num, data.shape))
+        self.dlg.log_area.insertPlainText("[{}] Selected band: {}\nRaster -> numpy.array, shape: {}\n".format(datetime.now(), bands_num, data.shape))
 
         return data  # shape:(bands, Y, X)
 
-    # read
-    # TODO: write classfied result to raster
-    # ref: https://gis.stackexchange.com/questions/34082/creating-raster-layer-from-numpy-array-using-pyqgis
+    # write classfied result to raster
     # data: a numpy array, (x, y) = data.shape
     def write_array_to_raster(self, data, save_to, geotransform, SRID=4326):
         driver = gdal.GetDriverByName('GTiff')
 
         rows, cols = data.shape
+        # create a new raster data source
         dataset = driver.Create(
             save_to,
             cols, rows,
@@ -397,56 +419,47 @@ Projection:
         out_srs.ImportFromEPSG(SRID)
 
         dataset.SetProjection(out_srs.ExportToWkt())
-        dataset.GetRasterBand(1).WriteArray(data.T)
+        dataset.GetRasterBand(1).WriteArray(data)
         dataset.GetRasterBand(1).SetNoDataValue(NODATA)
+        # close raster file
+        dataset = None 
 
-    # TODO： write resulted narray to raster with original data reserved
+    # write resulted narray to raster with original data reserved
     # ref: https://gis.stackexchange.com/questions/318050/writing-numpy-arrays-to-irregularly-shaped-multiband-raster
-    def write_array_to_raster_multiband(self, data, save_to,
-                                        xres, yres,
-                                        xmin, ymin,
-                                        nrows, ncols,
-                                        ncels, nbands
-                                        ):
-        cells = np.random.choice(np.arange(nrows * ncols), ncels, replace=False)
-        lats = np.arange(ymin, ymin + nrows * yres, yres)
-        lons = np.arange(xmin, xmin + ncols * xres, xres)
-        lats, lons = np.meshgrid(lats, lons)
-        lats, lons = lats.ravel()[cells]
-        # make an empty 1 band array to fill with labels
-        array = np.empty((nrows, ncols), dtype=np.int)
-        xmin, ymin, xmax, ymax = [lons.min(), lats.min(), lons.max(), lats.max()]
-        geotransform = (xmin, xres, 0, ymax, 0, -yres)
+    def write_array_to_raster_multiband(self, data, save_to, geotransform, SRID=4326):
 
-        # open the file
-        out_raster = gdal.GetDriverByName('GTiff'). \
-            Create(save_to, ncols, nrows, nbands, gdal.GDT_Float32)
-        out_raster.SetGeoTransform(geotransform)
+        driver = gdal.GetDriverByName('GTiff')
 
-        # Loop bands
+        nbands, rows, cols = data.shape
+        # create a new raster data source
+        dataset = driver.Create(
+            save_to,
+            cols, rows,
+            nbands, gdal.GDT_Float32,
+        )
+
+        dataset.SetGeoTransform(geotransform)
+
+        out_srs = osr.SpatialReference()
+        out_srs.ImportFromEPSG(SRID)
+
+        dataset.SetProjection(out_srs.ExportToWkt())
+
         for i in range(nbands):
-            # Init array with nodata
-            array[:] = NODATA
-            # loop lat/lons inc. index j
-            for j, (lon, lat) in enumerate(zip(lons, lats)):
-                # calc x, y pixel index
-                x = math.floor((lon - xmin) / xres)
-                y = math.floor((lat - ymin) / xres)
-                # TODO: fill the array
+            dataset.GetRasterBand(i+1).WriteArray(data[i])
+            dataset.GetRasterBand(i+1).SetNoDataValue(NODATA)
 
-            out_raster.GetRasterBand(i + 1).WriteArray(array)
-            out_raster.GetRasterBand(i + 1).SetNoDataValue(NODATA)
-
-        del out_raster
+        # close raster file
+        dataset = None
 
     
     def unsupervised_classification(self):
         # change to "log" tab
-        self.dlg.classify_tabs.setCurrentIndex(3)
+        self.dlg.classify_tabs.setCurrentIndex(2)
 
         data = self.raster_to_array()
         (nband, nY, nX) = data.shape
-        data = data.reshape((nband, nY*nX)).reshape((nY*nX, nband))
+        data = data.reshape((nband, nY*nX)).transpose()
 
         params = self.load_classify_config()
 
@@ -457,35 +470,52 @@ Projection:
         cls = None
 
         point_distance_methods = {
-            "euclidean distance": distance.euclidean_distance,
-            "cityblock distance": distance.cityblock_distance,
+            "euclidean distance": {"method": distance.euclidean_distance, "metrix": "euclidean"},
+            "cityblock distance": {"method": distance.cityblock_distance, "metrix": "cityblock"},
         }
 
-        #data = self._transfer_data_with_coordinate(data)
-        
-        #self.dlg.log_area.insertPlainText("after transfer data to 2D with coordiantes, shape: {}".format(data.shape))
+        k_cluster = params["k_cluster"]
+        precision = params["precision"]
 
         if params["alg_idx"] == 0:
-            labels, _ = optimization.FUZZY(data, params["k_cluster"], params["precision"])
+            # validate the parameters
+            if not k_cluster or k_cluster <= 0:
+                self.dlg.log_area.insertPlainText("[{}] parameter 'number of cluster' is required and should be a positive integer".format(datetime.now()))
+                return
+
+            if not precision or precision < 0:
+                    self.dlg.log_area.insertPlainText("[{}] parameter 'precision' is required".format(datetime.now()))
+                    return
+            # run
+            labels, _, _ = optimization.FUZZY(data, k_cluster, precision)
         elif params["alg_idx"] == 1:
-            labels = hierarchical.DIANA(data, point_distance_methods[params["point_distance_method"]])
+            if not k_cluster or k_cluster <= 0:
+                k_cluster = -1
 
-        save_data = labels[:, -1].reshape((nX, nY))
-        
-        
-        #if params["alg_idx"] in [0, 1]:
-        #    save_data = self._clses_2D_label(cls, data.shape[1:])
-        #if params["alg_idx"] in [2]:
-        #    save_data = self._cls_2D_label(cls, data.shape[1:])
-        
-         # save to raster file
-        self.write_array_to_raster(save_data, params["outname"], self.RASTER_DS.GetGeoTransform)
+            labels, _ = hierarchical.DIANA(data, k_cluster, point_distance_methods[params["point_distance_method"]]["metrix"])
 
+        # clear the garbage memory
+        import gc
+        gc.collect()
 
-    # TODO: transfer data with label into a numpy array
-    # whose index corresponding to coordinates and value to class (result[i,j]=label)
-    def _cls_2D_label(self, cls, shape):
-        result = np.ones(shape) * NODATA
-        for ele in cls:
-            result[ele[-2], ele[-3]] = ele[-1]
-        return result
+        # calculate the index and show
+        si = statistics.silhouette_score(labels[:,:-1], labels[:, -1].reshape(-1,1), point_distance_methods[params["point_distance_method"]]["metrix"])
+
+        self.dlg.log_area.insertPlainText("""
+            The Silhouette Index:
+            {}
+
+        [{}] Classification algorithm finishes. Begin to save the result\n""".format(si, datetime.now()))
+
+        save_data = labels.transpose().reshape((nband+1, nY, nX))
+        
+        # save to raster file
+        self.write_array_to_raster_multiband(save_data, params["outname"], self.RASTER_DS.GetGeoTransform())
+        
+        self.dlg.log_area.insertPlainText("[{}] The raster file {} has already saved\n\n".format(datetime.now(), params["outname"]))
+
+        # load output
+        if params.get("load_result", False):
+            out_rlayer = QgsRasterLayer(params["outname"], os.path.split(params["outname"])[-1])
+            QgsProject.instance().addMapLayer(out_rlayer)
+
