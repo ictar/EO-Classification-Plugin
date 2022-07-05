@@ -5,18 +5,18 @@ import math
 euclidean_distance = lambda x, y: np.sqrt(np.sum(np.square(x-y)))
 cityblock_distance = lambda x, y: np.sum(np.abs(x-y), axis=0)
 
-# return the distance between each point in data (X, Y, point value)
+# return the distance between each point in data
 def points_distance(data, distance=euclidean_distance):
     N = data.shape[0]
     results = np.ones((N, N)) * -1
 
-    for i in data:
-        for j in data:
+    for i in range(N):
+        for j in range(N):
             if i == j:
                 results[i, j] = 0
                 continue
             if results[i, j] != -1: continue
-            results[i, j] = distance(i, j)
+            results[i, j] = distance(data[i], data[j])
             results[j, i] = results[i, j]
     return results
 
