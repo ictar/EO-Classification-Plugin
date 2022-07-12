@@ -279,7 +279,7 @@ class EO_Classfication:
     def load_raster(self):
         if self.RASTER_DS:
             # TODO: deal with opened raster layer
-            pass
+            self.RASTER_DS = None
 
         # input file name
         path = self.dlg.comboBox_input_raster.currentText()
@@ -293,6 +293,8 @@ class EO_Classfication:
         self.dlg.log_area.insertPlainText("[{}] Layer {} is open, band count: {}\n".format(datetime.now(), path, self.RASTER_DS.RasterCount))
 
         # show band information to select, default, all bands are selected
+        # clear 'list_bands' first
+        self.dlg.list_bands.clear()
         band_statistics = ""
         for i in range(1, self.RASTER_DS.RasterCount + 1):
             item = QListWidgetItem("Band %i" % i)
@@ -319,6 +321,9 @@ class EO_Classfication:
             )
 
         # show layer properties
+        proj = osr.SpatialReference(wkt=self.RASTER_DS.GetProjection())
+
+
         self.dlg.layer_info_browser.clear()
         self.dlg.layer_info_browser.append("""Dimensions:
     x size = {},
@@ -332,12 +337,15 @@ Number of bands: {}
 
 Projection: 
     {}
+
+EPSG: {}
         """.format(
             self.RASTER_DS.RasterXSize, self.RASTER_DS.RasterYSize,
             self.RASTER_DS.GetMetadata(),
             self.RASTER_DS.RasterCount,
             band_statistics,
-            self.RASTER_DS.GetProjection()
+            self.RASTER_DS.GetProjection(),
+            proj.GetAttrValue('AUTHORITY',1)
         ))
 
     # load configuration for classification methods
@@ -510,7 +518,12 @@ Projection:
         save_data = labels.transpose().reshape((nband+1, nY, nX))
         
         # save to raster file
-        self.write_array_to_raster_multiband(save_data, params["outname"], self.RASTER_DS.GetGeoTransform())
+        proj = osr.SpatialReference(wkt=self.RASTER_DS.GetProjection())
+        ## get SRID
+        self.write_array_to_raster_multiband(
+            save_data, params["outname"], 
+            self.RASTER_DS.GetGeoTransform(),
+            SRID=int(proj.GetAttrValue('AUTHORITY',1)))
         
         self.dlg.log_area.insertPlainText("[{}] The raster file {} has already saved\n\n".format(datetime.now(), params["outname"]))
 
