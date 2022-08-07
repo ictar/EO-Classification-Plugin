@@ -21,18 +21,23 @@ colors = ['b', 'orange', 'g', 'r', 'c', 'm', 'y', 'k', 'Brown', 'ForestGreen']
 #------------------------------ FUZZY --------------------------
 # compare the reulst between truth, FUZZY and skfuzzy
 def compare_fuzzy_skfuzzy():
+    '''
     fname = SCRIPT_DIR + r'/data/data_2_3_601.txt'
-    k = int(fname.split('_')[-2])
-    prec = 0.01
+    k = int(fname.split('_')[-2]) 
     # load data and visualize
     dataset = np.loadtxt(fname)
+    labels = dataset[:, -1]
+    '''
+    mat = loadmat(r'data/compare/data_4_2.mat')
+    dataset, k, labels = mat['mix'], mat['C_cl'].shape[0], mat['label'].reshape(-1)
 
+    prec = 0.01
     # plot raw data
     fig1, ax = plt.subplots(1, 3, figsize=(15,8))
     # visualize the test data
-    xpts, ypts, labels = dataset[:, 0], dataset[:, 1], dataset[:, -1]
+    xpts, ypts = dataset[:, 0], dataset[:, 1]
 
-    for label in range(k):
+    for label in range(k+1):
         ax[0].plot(xpts[labels==label], ypts[labels == label], '.', color=colors[label])
     ax[0].set_title("Test data: 200 points x {} clusters.".format(k))
 
@@ -74,8 +79,8 @@ def compare_fuzzy_skfuzzy():
 
     plt.show()
     # compare result between truth and FUZZY, FUZZY and fuzzy
-    
-# TODO: evaluate the performance of FUZZY on a single dataset, including running time, accuracy compared with truth.
+  
+# evaluate the performance of FUZZY on a single dataset, including running time, accuracy compared with truth.
 def performance_fuzzy(dataset, tlabels, k, tcenters, prec=0.01, prec_decimals=2):
     performance = {}
 
@@ -84,7 +89,7 @@ def performance_fuzzy(dataset, tlabels, k, tcenters, prec=0.01, prec_decimals=2)
     labels, weights, m = FUZZY(dataset, k, prec)
     end = time.process_time_ns()
     performance['elapse_time'] = end - start
-
+    performance['centers'] = str(m)
     # accuracy
     performance['misclassified_number'] = fuzzy_misclassified_number(tlabels, tcenters, labels[:, -1], m, prec_decimals)
 
@@ -93,8 +98,55 @@ def performance_fuzzy(dataset, tlabels, k, tcenters, prec=0.01, prec_decimals=2)
 #---------------------------------------------------------------
 
 #------------------------------ DIANA --------------------------
+# compare the reulst between truth, DIANA
+def compare_diana():
+    '''
+    fname = SCRIPT_DIR + r'/data/data_2_3_601.txt'
+    k = int(fname.split('_')[-2]) 
+    # load data and visualize
+    dataset = np.loadtxt(fname)
+    labels = dataset[:, -1]
+    '''
+    mat = loadmat(r'data/compare/data_4_1.mat')
+    dataset, k, labels = mat['mix'], mat['C_cl'].shape[0], mat['label'].reshape(-1)
 
-# TODO: evaluate the performance of DIANA, including running time, accuracy compared with truth.
+    prec = 0.01
+    # plot raw data
+    fig1, ax = plt.subplots(1, 3, figsize=(15,8))
+    # visualize the test data
+    xpts, ypts = dataset[:, 0], dataset[:, 1]
+
+    for label in range(k+1):
+        ax[0].plot(xpts[labels==label], ypts[labels == label], '.', color=colors[label])
+    ax[0].set_title("Test data: 200 points x {} clusters.".format(k))
+
+    # run DIANA and visualize
+    k = 2
+    dlabels, n_cluster = DIANA(dataset[:,:2], k)
+    for i in dlabels:
+        ax[1].plot(
+            i[0], i[1],
+            '.', color=colors[int(i[2])]
+        )
+
+    ax[1].set_title('using DIANA: k='+str(k))
+
+    k = 3
+    dlabels, n_cluster = DIANA(dataset[:,:2], k)
+    miscnt, dlabels_min = diana_misclassified_number(labels, dlabels[:, -1], k)
+    print(miscnt)
+    dlabels[:,-1] = dlabels_min
+    for i in dlabels:
+        ax[2].plot(
+            i[0], i[1],
+            '.', color=colors[int(i[2])]
+        )
+
+    ax[2].set_title('using DIANA: k='+str(k))
+
+    plt.show()
+
+# evaluate the performance of DIANA, including running time, accuracy compared with truth.
 def performance_DIANA(dataset, tlabels, k):
     performance = {}
 
@@ -105,7 +157,7 @@ def performance_DIANA(dataset, tlabels, k):
     performance['elapse_time'] = end - start
 
     # accuracy
-    performance['misclassified_number'] = diana_misclassified_number(tlabels, dlabels[:, -1])
+    performance['misclassified_number'], _ = diana_misclassified_number(tlabels, dlabels[:, -1], k)
 
     return performance
 
@@ -127,7 +179,7 @@ def compare_fuzzy_diana(dir, save_to):
             continue
         print("[BEGIN]", fname)
         dataset = mat['mix']
-        tlabels = mat['label']
+        tlabels = mat['label'].reshape(-1)
         k = mat['C_cl'].shape[0]
         tcenters = mat['mu_cl']
         tp = {
@@ -152,5 +204,6 @@ def compare_fuzzy_diana(dir, save_to):
 
 if __name__ == '__main__':
     #compare_fuzzy_skfuzzy()
-    compare_fuzzy_diana(r'./data/compare/', "compare.json")
-    compare_fuzzy_diana(r'./data/performance/', "performance.json")
+    compare_diana()
+    #compare_fuzzy_diana(r'./data/compare/', "compare.json")
+    #compare_fuzzy_diana(r'./data/performance/', "performance.json")

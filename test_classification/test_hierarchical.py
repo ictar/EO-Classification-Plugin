@@ -27,7 +27,8 @@ class TestHierarchical(unittest.TestCase):
                     [ 1.717  1.   ]]"""
         # in matlab: [label] = DIANA(data)
         tlabels = np.array([7, 2, 5, 3, 4, 6, 8, 1])
-        self.assertEqual(diana_misclassified_number(tlabels, label[:, -1]), 0)
+        mis_cnt, _ = diana_misclassified_number(tlabels, label[:, -1])
+        self.assertEqual(mis_cnt, 0)
 
 
     def test_DIANA_1D_100(self):
@@ -39,7 +40,9 @@ class TestHierarchical(unittest.TestCase):
         print("label.shape:", label.shape, "label: ", label, "number of clsuter: ", n_cluster)
         # in matlab: [label] = DIANA(data)
         tlabels = np.array([69, 99, 81, 59, 12, 60, 21, 57, 87, 47, 48, 62, 35, 64, 91, 72, 43, 70, 82, 73, 68, 77, 75, 16, 86, 40, 30, 89, 18, 100, 74, 95, 23, 53, 45, 85, 19, 80, 65, 58, 24, 44, 15, 78, 96, 98, 54,  7, 52, 90, 83, 92, 79, 76, 67, 31, 94, 66, 33, 46, 28, 10,  4, 56,  9, 61, 39, 13, 97, 25, 93, 20, 29, 37, 50, 27, 51, 84,  8,  3, 63, 41, 55, 71, 11, 34,  1, 14, 49, 36, 32,  2, 88, 17, 26,  6,  5, 38, 42, 22])
-        self.assertEqual(diana_misclassified_number(tlabels, label[:, -1]), 0)
+        
+        mis_cnt, _ = diana_misclassified_number(tlabels, label[:, -1])
+        self.assertEqual(mis_cnt, 0)
 
     def test_DIANA_2D_100(self):
         print("test DIANAN with 100 2D data")
@@ -50,7 +53,9 @@ class TestHierarchical(unittest.TestCase):
 
         # in matlab: [label] = DIANA(data)
         tlabels = np.array([78, 15,  9, 100, 77, 76, 46, 69, 48, 44, 30, 60, 42, 81, 85, 75, 98, 41, 84, 23, 68, 95,  2, 22, 29, 52,  5, 21, 88, 94, 40, 43, 20, 70, 45, 63, 64,  8, 53, 90, 37, 54, 96, 65, 28, 79, 58, 93, 86, 61, 72, 80, 47, 49, 24, 25, 31, 83, 89, 38, 12, 97, 34, 92, 56, 33, 17, 73, 82, 18, 27, 50, 99, 62,  7, 55, 91, 19, 87, 57, 13, 14, 66, 74, 26, 35, 10, 71, 59, 36, 39, 16,  4, 32, 51, 67,  1, 11,  3,  6])
-        self.assertEqual(diana_misclassified_number(tlabels, label[:, -1]), 0)
+        
+        mis_cnt, _ = diana_misclassified_number(tlabels, label[:, -1])
+        self.assertEqual(mis_cnt, 0)
 
 
 if __name__ == '__main__':

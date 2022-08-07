@@ -6,14 +6,13 @@ sys.path.append(os.path.dirname(SCRIPT_DIR))
 import unittest
 import numpy as np
 
+from scipy.io import loadmat
+
 from classification.optimization import FUZZY
 from classification.statistics import fuzzy_misclassified_number
 
 class TestOptimization(unittest.TestCase):
 
-    # check result with the true label.
-    
-        
 
     def test_FUZZY_1D(self):
         print("test FUZZY with 1D data")
@@ -55,6 +54,36 @@ class TestOptimization(unittest.TestCase):
         tcenters = np.array([[3.9171, 4.0407], [1.0349, 0.9986]]).reshape((2,2))
         self.assertEqual(fuzzy_misclassified_number(tlabels, tcenters,labels[:, -1], m, 2), 0)
 
+
+    def test_FUZZY_mat(self):
+        mp = r'data/compare/data_4_2.mat'
+        print('teste FUZZY with matfile ' + mp)
+        data, tlabels, tcenters, k = self._load_mat(mp)
+        prec = 0.01
+        labels, weights, m = FUZZY(data, k, prec)
+        print("m:{},\ntrue m: {}".format(m, tcenters))
+        # plot
+        import matplotlib.pyplot as plt
+        colors = ['b', 'orange', 'g', 'r', 'c', 'm', 'y', 'k', 'Brown', 'ForestGreen']
+        for i in labels:
+            plt.plot(
+            i[0], i[1],
+            '.', color=colors[int(i[2])-1]
+        )
+        for pt in m:
+            plt.plot(pt[0], pt[1], 'rs')
+        plt.text(pt[0]+0.2, pt[1], "({:.4f},{:.4f})".format(pt[0], pt[1]), horizontalalignment='left', size='medium', color='black')
+        plt.show()
+
+        self.assertEqual(fuzzy_misclassified_number(tlabels, tcenters,labels[:, -1], m, 2), 0)
+
+
+    """
+    dataset, tlabels, tcenters, k = self._load_mat(mp)
+    """
+    def _load_mat(self, matpath):
+        mat = loadmat(matpath)
+        return mat['mix'], mat['label'], mat['mu_cl'], mat['C_cl'].shape[0]
 
 
 if __name__ == '__main__':
