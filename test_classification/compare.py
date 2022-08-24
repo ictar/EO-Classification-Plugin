@@ -21,7 +21,7 @@ colors = ['b', 'orange', 'g', 'r', 'c', 'm', 'y', 'k', 'Brown', 'ForestGreen']
 #------------------------------ FUZZY --------------------------
 # compare the reulst between truth, FUZZY and skfuzzy
 def compare_fuzzy_skfuzzy():
-    '''
+    
     fname = SCRIPT_DIR + r'/data/data_2_3_601.txt'
     k = int(fname.split('_')[-2]) 
     # load data and visualize
@@ -30,6 +30,7 @@ def compare_fuzzy_skfuzzy():
     '''
     mat = loadmat(r'data/compare/data_4_2.mat')
     dataset, k, labels = mat['mix'], mat['C_cl'].shape[0], mat['label'].reshape(-1)
+    '''
 
     prec = 0.01
     # plot raw data
@@ -133,9 +134,9 @@ def compare_diana():
 
     k = 3
     dlabels, n_cluster = DIANA(dataset[:,:2], k)
-    miscnt, dlabels_min = diana_misclassified_number(labels, dlabels[:, -1], k)
-    print(miscnt)
-    dlabels[:,-1] = dlabels_min
+   # miscnt, dlabels_min = diana_misclassified_number(labels, dlabels[:, -1], k)
+    #print(miscnt)
+    #dlabels[:,-1] = dlabels_min
     for i in dlabels:
         ax[2].plot(
             i[0], i[1],
@@ -204,6 +205,6 @@ def compare_fuzzy_diana(dir, save_to):
 
 if __name__ == '__main__':
     #compare_fuzzy_skfuzzy()
-    compare_diana()
-    #compare_fuzzy_diana(r'./data/compare/', "compare.json")
+    #compare_diana()
+    compare_fuzzy_diana(r'./data/compare/', "compare.json")
     #compare_fuzzy_diana(r'./data/performance/', "performance.json")
