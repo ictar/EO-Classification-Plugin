@@ -1,0 +1,30 @@
+[2022-08-30 11:55:11.060620] Layer postfire_bands is open, band count: 8
+[2022-08-30 11:55:43.483006] Selected band: [3, 5]
+Raster -> numpy.array, shape: (2, 41, 41)
+[2022-08-30 11:55:43.483360] Classification algorithm: FANNY (Fuzzy Analysis Clustering) (index=0)
+                point distance method: euclidean distance
+                precision: 0.01,[2022-08-30 11:57:10.433815] Selected band: [3, 5]
+Raster -> numpy.array, shape: (2, 41, 41)
+[2022-08-30 11:57:10.434476] Classification algorithm: DIANA (DIvisive ANAlysis) (index=1)
+                point distance method: euclidean distance
+                precision: 0.01,
+                number of cluster: 2,
+            Output file: /Users/elexu/读书/米兰理工（GIS-CS）/2-2 Earth Observation/plugin lab/eo_classification/test_classification/data/rasters/2bandxvalue/postfire_bands_NIR_RED_DIANA_2cls.tif,
+            Load output: True
+
+            The Silhouette Index:
+            0.6171142125322157
+
+        [2022-08-30 11:57:43.288080] Classification algorithm finishes. Begin to save the result
+[2022-08-30 11:57:43.290873] The raster file /Users/elexu/读书/米兰理工（GIS-CS）/2-2 Earth Observation/plugin lab/eo_classification/test_classification/data/rasters/2bandxvalue/postfire_bands_NIR_RED_DIANA_2cls.tif has already saved
+
+
+                number of cluster: 2,
+            Output file: /Users/elexu/读书/米兰理工（GIS-CS）/2-2 Earth Observation/plugin lab/eo_classification/test_classification/data/rasters/2bandxvalue/postfire_bands_NIR_RED_FANNY_2cls.tif,
+            Load output: True
+
+            The Silhouette Index:
+            0.6176894744098881
+
+        [2022-08-30 11:55:43.646085] Classification algorithm finishes. Begin to save the result
+[2022-08-30 11:55:43.651608] The raster file /Users/elexu/读书/米兰理工（GIS-CS）/2-2 Earth Observation/plugin lab/eo_classification/test_classification/data/rasters/2bandxvalue/postfire_bands_NIR_RED_FANNY_2cls.tif has already saved

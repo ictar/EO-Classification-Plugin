@@ -57,6 +57,14 @@ class TestHierarchical(unittest.TestCase):
         mis_cnt, _ = diana_misclassified_number(tlabels, label[:, -1])
         self.assertEqual(mis_cnt, 0)
 
+    def test_DIANA_from_file(self):
+        fn = r"/Users/elexu/Downloads/raster.csv"
+        data = np.genfromtxt(fn, delimiter=",")
+        print("test DIANA with ", data.shape)
+        n_cluster = 3
+        label, n_cluster = DIANA(data, n_cluster)
+        print("result: ", label.shape, n_cluster)
+
 
 if __name__ == '__main__':
     unittest.main()

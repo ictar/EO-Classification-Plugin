@@ -471,10 +471,6 @@ EPSG: {}
 
         params = self.load_classify_config()
 
-        algorithms = {
-            0: optimization.FUZZY,
-            1: hierarchical.DIANA,
-        }
         cls = None
 
         point_distance_methods = {
@@ -485,6 +481,8 @@ EPSG: {}
         k_cluster = params["k_cluster"]
         precision = params["precision"]
 
+        # TOTEST
+        #np.savetxt(r"/Users/elexu/Downloads/raster.csv", data, delimiter=",")
         if params["alg_idx"] == 0:
             # validate the parameters
             if not k_cluster or k_cluster <= 0:
@@ -499,7 +497,6 @@ EPSG: {}
         elif params["alg_idx"] == 1:
             if not k_cluster or k_cluster <= 0:
                 k_cluster = -1
-
             labels, _ = hierarchical.DIANA(data, k_cluster, point_distance_methods[params["point_distance_method"]]["metrix"])
 
         # clear the garbage memory

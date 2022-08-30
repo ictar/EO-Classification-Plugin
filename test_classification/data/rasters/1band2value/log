@@ -1,0 +1,30 @@
+[2022-08-29 15:59:43.140279] Layer NN is open, band count: 1
+[2022-08-29 16:00:21.581124] Selected band: [1]
+Raster -> numpy.array, shape: (1, 41, 41)
+[2022-08-29 16:00:21.581551] Classification algorithm: FANNY (Fuzzy Analysis Clustering) (index=0)
+                point distance method: euclidean distance
+                precision: 0.01,
+                number of cluster: 2,
+            Output file: /Users/elexu/读书/米兰理工（GIS-CS）/2-2 Earth Observation/plugin lab/eo_classification/test_classification/data/rasters/1band2value/NN_fuzzy.tif,
+            Load output: True
+
+            The Silhouette Index:
+            1.0
+
+        [2022-08-29 16:00:21.748974] Classification algorithm finishes. Begin to save the result
+[2022-08-29 16:00:21.760190] The raster file /Users/elexu/读书/米兰理工（GIS-CS）/2-2 Earth Observation/plugin lab/eo_classification/test_classification/data/rasters/1band2value/NN_fuzzy.tif has already saved
+
+[2022-08-29 16:01:19.771757] Selected band: [1]
+Raster -> numpy.array, shape: (1, 41, 41)
+[2022-08-29 16:01:19.772224] Classification algorithm: DIANA (DIvisive ANAlysis) (index=1)
+                point distance method: euclidean distance
+                precision: 0.01,
+                number of cluster: 2,
+            Output file: /Users/elexu/读书/米兰理工（GIS-CS）/2-2 Earth Observation/plugin lab/eo_classification/test_classification/data/rasters/1band2value/NN_diana.tif,
+            Load output: True
+
+            The Silhouette Index:
+            1.0
+
+        [2022-08-29 16:01:45.746985] Classification algorithm finishes. Begin to save the result
+[2022-08-29 16:01:45.750804] The raster file /Users/elexu/读书/米兰理工（GIS-CS）/2-2 Earth Observation/plugin lab/eo_classification/test_classification/data/rasters/1band2value/NN_diana.tif has already saved

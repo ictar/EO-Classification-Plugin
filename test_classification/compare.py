@@ -108,7 +108,7 @@ def compare_diana():
     dataset = np.loadtxt(fname)
     labels = dataset[:, -1]
     '''
-    mat = loadmat(r'data/compare/data_4_1.mat')
+    mat = loadmat(SCRIPT_DIR + r'/data/compare/data_4_1.mat')
     dataset, k, labels = mat['mix'], mat['C_cl'].shape[0], mat['label'].reshape(-1)
 
     prec = 0.01
