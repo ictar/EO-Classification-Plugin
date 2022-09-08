@@ -532,3 +532,14 @@ EPSG: {}
             out_rlayer = QgsRasterLayer(params["outname"], os.path.split(params["outname"])[-1])
             QgsProject.instance().addMapLayer(out_rlayer)
 
+
+    # TODO: transfer data with label into a numpy array
+    # whose index corresponding to coordinates and value to class (result[i,j]=label)
+    def _cls_2D_label(self, cls, shape):
+        result = np.ones(shape) * NODATA
+        for ele in cls:
+            result[ele[-2], ele[-3]] = ele[-1]
+        return result
+
+
+
